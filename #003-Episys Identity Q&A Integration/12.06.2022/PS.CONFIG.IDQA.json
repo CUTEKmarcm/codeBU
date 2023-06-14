@@ -1,0 +1,148 @@
+{
+"Description":"Identity Q&A Integration",
+"FileType":"",
+"LastUpdatedBy":"0159 COREY BROWN",
+"ModifiedDate":"01/14/2022",
+"ModifiedTime":"1028",
+"ProductTags":[
+"IDQA"
+],
+"ConfigType":"SETTINGS",
+"settings":[
+{
+"settingtype":"string-statickey",
+"key":"URL",
+"value":"http://autx-stavelot:8080/com.symitar.idqa/rest/"
+},
+{
+"settingtype":"boolean-statickey",
+"key":"Test Site",
+"value":"0"
+},
+{
+"settingtype":"string-statickey",
+"key":"Username",
+"value":"20227838"
+},
+{
+"settingtype":"string-statickey",
+"key":"Account Name Types",
+"value":"ALL"
+},
+{
+"settingtype":"string-statickey",
+"key":"Share Name Types",
+"value":"ALL"
+},
+{
+"settingtype":"string-statickey",
+"key":"Loan Name Types",
+"value":"ALL"
+},
+{
+"settingtype":"string-statickey",
+"key":"External Loan Name Types",
+"value":""
+},
+{
+"settingtype":"string-statickey",
+"key":"Application Name Types",
+"value":"ALL"
+},
+{
+"settingtype":"string-statickey",
+"key":"Account Tracking Type",
+"value":"54"
+},
+{
+"settingtype":"string-statickey",
+"key":"App Tracking Type",
+"value":"54"
+},
+{
+"settingtype":"string-statickey",
+"key":"Expire Acct Tr Months",
+"value":"3"
+},
+{
+"settingtype":"boolean-statickey",
+"key":"Display Decision Screen",
+"value":"1"
+},
+{
+"settingtype":"string-statickey",
+"key":"Form Specfile",
+"value":""
+},
+{
+"settingtype":"string-statickey",
+"key":"Vendor",
+"value":"FIS"
+},
+{
+"settingtype":"string-statickey",
+"key":"Production URL",
+"value":"https://soap.penleyinc.com/fissoap1/services/ida"
+},
+{
+"settingtype":"string-statickey",
+"key":"Staging URL",
+"value":"https://penleyincqa.penleyinc.com/fissoap1/services/ida"
+},
+{
+"settingtype":"string-statickey",
+"key":"Password Service Production URL",
+"value":"https://soap.penleyinc.com/fissoap1/services/authentication"
+},
+{
+"settingtype":"string-statickey",
+"key":"Password Service Staging URL",
+"value":"https://penleyincqa.penleyinc.com/fissoap1/services/authentication"
+},
+{
+"settingtype":"string-statickey",
+"key":"productVersion",
+"value":"0001"
+},
+{
+"settingtype":"string-statickey",
+"key":"productCode",
+"value":"01"
+},
+{
+"settingtype":"string-statickey",
+"key":"misc1",
+"value":"189932"
+},
+{
+"settingtype":"string-statickey",
+"key":"misc2",
+"value":"IDAaliaskey"
+},
+{
+"settingtype":"string",
+"key":"misc3",
+"value":"JHA"
+},
+{
+"settingtype":"string",
+"key":"misc4",
+"value":""
+},
+{
+"settingtype":"string",
+"key":"misc5",
+"value":""
+},
+{
+"settingtype":"boolean-statickey",
+"key":"Auto Change Password",
+"value":"0"
+},
+{
+"settingtype":"string-statickey",
+"key":"Password Change Threshold",
+"value":"9999"
+}
+]
+}

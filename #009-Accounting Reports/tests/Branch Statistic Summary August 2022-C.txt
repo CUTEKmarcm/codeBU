@@ -1,0 +1,56 @@
+AUSTIN TELCO                             Branch Statistic Summary August 2022     09/09/22 at 12/22/22 07:31 Seq 882706   Page     1
+
+
+Totals by Branch        Shoal Creek   Cedar Park    Northeast         Taos  La Frontera   Jollyville      Leander      Bastrop
+# Deposit Trans               4,224        3,870        2,309        1,348        3,933        1,520        5,490        3,318 
+Deposits for Month       16,407,552    6,487,500    1,628,329    2,869,774    5,613,743    2,659,028    7,118,258    3,683,430 
+# New Accounts                   87           26           19           15           33            6           42           19 
+# New Checking                   27           30           18           18           31            4           41           24 
+Total ATM Trans                0/00      0/1,224        1,809    1,116/237        1,679          914        2,100        1,864
+Total Members                 8,565        5,592        3,078        3,475        5,252        2,429        7,528        4,195 
+Total Checking Accts          4,092        4,003        2,102        1,605        3,575        1,589        5,780        3,063 
+Total Shares            186,265,597  137,152,319   47,561,227   86,152,722  116,302,354   64,917,583  167,729,899  105,774,341 
+Total Loans              70,684,618   27,766,322   13,451,381   22,440,705   27,751,881   12,237,767   44,119,527   16,781,760 
+Total Branch Trans                0            0            0            0            0            0            0            0 
+CU Mortgage Loans       313,498,177 
+OD Tollerance               187,516 
+CUBS Loans                3,108,756 
+
+Overdrawn Accts             186,825 
+
+Totals by Branch           Lakeline  Louis Henna   Pecan Park       Brodie   Georgetown  Frontier Tr         Buda   Stone Hill
+# Deposit Trans               2,295            0        2,095        2,040        2,651        3,128        2,971        3,124 
+Deposits for Month        3,309,372            0    2,580,453    2,902,102    5,149,043    5,208,980    5,689,936    4,757,165 
+# New Accounts                    9            0           10           23           19            0           11           24 
+# New Checking                   12            0           15           16           19            2           15           28 
+Total ATM Trans               1,282            0          683          727        1,246            0        1,608        2,101
+Total Members                 3,474          981        3,454        4,094        4,050        3,031        3,437        4,910 
+Total Checking Accts          2,499          462        2,287        2,388        2,798        2,463        2,645        3,708 
+Total Shares             82,660,784    9,208,555   78,674,221  102,347,451  115,631,410   67,229,094   83,741,825   98,806,462 
+Total Loans              18,190,283    3,257,095   24,918,863   32,491,471   34,955,037   25,507,692   13,050,275   23,488,291 
+Total Branch Trans                0            0            0            0            0            0            0            0 
+
+Totals by Branch    University Oaks   Tech Ridge      Lakeway       Taylor   San Marcos     Lockhart     Balcones     Oak Hill
+# Deposit Trans               1,703        2,545        1,140        2,177        1,424        2,023        3,303          823 
+Deposits for Month        2,239,358    2,268,720    4,019,851    2,258,395    1,304,427    1,497,466    2,777,199    1,550,419 
+# New Accounts                   16           24           13           26           11            7            5            0 
+# New Checking                   15           30           12           25           10            8            7            0 
+Total ATM Trans                 625            0          398        1,791        1,014        2,229          555          297
+Total Members                 4,029        3,412        2,440        2,242        1,900        1,680        3,848          973 
+Total Checking Accts          2,324        2,345        1,448        1,804        1,441        1,373        1,595          754 
+Total Shares             53,769,044   58,061,723   72,184,254   40,845,027   31,759,179   32,970,137  315,386,439   28,069,604 
+Total Loans              40,235,741   15,080,413   43,404,057    9,881,116    6,487,915    3,349,221   41,178,088   11,290,275 
+Total Branch Trans                0            0            0            0            0            0            0            0 
+
+Totals by Branch             Online
+# Deposit Trans                   0 
+Deposits for Month                0 
+# New Accounts                   77 
+# New Checking                   35 
+Total ATM Trans                   0
+Total Members                 2,390 
+Total Checking Accts            754 
+Total Shares              3,183,719 
+Total Loans              22,785,571 
+Total Branch Trans                0 
+

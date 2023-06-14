@@ -1,0 +1,50 @@
+[
+****************************************************************************************
+*****  Copyright 2022 CUTEK. All rights reserved.                     rev 01-2022  *****
+*****                                                                              *****
+*****  This licensed source code may not be reproduced, displayed, modified or     *****
+*****  distributed without the express prior written permission of the copyright   *****
+*****  holder. As implemented with CUTEK products, code is licensed only for the   *****
+*****  license term of the agreement. For further information, contact             *****
+*****  sales@cutek.com                                                             *****
+****************************************************************************************
+
+ Client name:  Austin Telco
+ File name:    WARR.GAP.LETTER.3
+ Created by:   CUTEK, Inc. - Marc Middleton
+ Created on:   NOVEMBER 2022
+ CUTEK Ticket: 32282
+ 
+ Description:
+ We have 3 letters we’d like produced based on 2 fields in Loan Tracking 30, GAP and Warr (Warranty) for Loan Types 81-84. 
+ Our lending department would like these letters auto printed, similar to how GH.BUSINESSLOANS.LETTERHEAD works. 
+ We will probably need a way to exclude the account if a letter has already been generated 
+  but I am confirming with our Lending department if that is something they want.
+ Got confirmation they want this to be a one time letter per loan ID. 
+ 
+ Letter 3 = No GAP and No Warranty
+ 
+ Modified by:  
+ Modified on:  
+ Modification: 
+]
+PROCEDURE LETTER3
+ OUTPUTSWITCH(OUTPUTCHANNEL3,ERRORTEXT)
+ NEWLINE
+ COL=005 FORMAT("99/99/9999",SYSTEMDATE)
+ NEWLINE
+ NEWLINE
+ COL=005 CAPITALIZE(NAME:LONGNAME)
+ NEWLINE
+ COL=005 CAPITALIZE(NAME:STREET)+" "+CAPITALIZE(NAME:EXTRAADDRESS)
+ NEWLINE
+ COL=005 CAPITALIZE(NAME:CITY)+" "+NAME:STATE+"  "+NAME:ZIPCODE
+ NEWLINE
+ NEWLINE
+ COL=005 "Dear "+CAPITALIZE(NAME:LONGNAME)+","
+ NEWLINE
+ NEWLINE
+ 
+ NEWPAGE 
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)
+END

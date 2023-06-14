@@ -1,0 +1,120 @@
+[
+****************************************************************************************
+*****  Copyright 2022 CUTEK. All rights reserved.                     rev 01-2022  *****
+*****                                                                              *****
+*****  This licensed source code may not be reproduced, displayed, modified or     *****
+*****  distributed without the express prior written permission of the copyright   *****
+*****  holder. As implemented with CUTEK products, code is licensed only for the   *****
+*****  license term of the agreement. For further information, contact             *****
+*****  sales@cutek.com                                                             *****
+****************************************************************************************
+
+ Client name:  Austin Telco
+ File name:    WARR.GAP.LETTERS
+ Created by:   CUTEK, Inc. - Marc Middleton
+ Created on:   NOVEMBER 2022
+ CUTEK Ticket: 32282
+ 
+ Description:
+ We have 3 letters we’d like produced based on 2 fields in Loan Tracking 30, GAP and Warr (Warranty) for Loan Types 81-84. 
+ Our lending department would like these letters auto printed, similar to how GH.BUSINESSLOANS.LETTERHEAD works. 
+ We will probably need a way to exclude the account if a letter has already been generated 
+  but I am confirming with our Lending department if that is something they want.
+ Got confirmation they want this to be a one time letter per loan ID. 
+ 
+ Modified by:  
+ Modified on:  
+ Modification: 
+]
+TARGET=LOAN
+
+DEFINE
+ #INCLUDE "RD.OUTPUT.DEF"
+ OUTPUTCHANNEL1=NUMBER
+ OUTPUTCHANNEL2=NUMBER
+ OUTPUTCHANNEL3=NUMBER
+ ERRORTEXT=CHARACTER
+ ERRORTEXTIGNORE=CHARACTER
+ GAP=CHARACTER(3)
+ WARRANTY=CHARACTER(3)
+ SELLER    = CHARACTER
+ COLLYEAR  = NUMBER
+ COLLMAKE  = CHARACTER
+ COLLMODEL = CHARACTER
+ STARTDATE = DATE
+END
+
+SETUP
+ STARTDATE = '07/01/2022'
+ OUTPUTOPEN(OUTPUTDEVREPORT,0,"No GAP","LOANREPORT",OUTPUTCHANNEL1,ERRORTEXT)
+ IF ERRORTEXT<>"" THEN CALL ERRORHANDLER
+ OUTPUTOPEN(OUTPUTDEVREPORT,0,"No Warranty","LOANREPORT",OUTPUTCHANNEL2,ERRORTEXT)
+ IF ERRORTEXT<>"" THEN CALL ERRORHANDLER
+ OUTPUTOPEN(OUTPUTDEVREPORT,0,"No GAP & Warranty","LOANREPORT",OUTPUTCHANNEL3,ERRORTEXT)
+ IF ERRORTEXT<>"" THEN CALL ERRORHANDLER  
+END
+
+SELECT
+(LOAN:TYPE>=81 AND LOAN:TYPE<=84) AND
+ LOAN:CLOSEDATE='--/--/--' AND 
+ LOAN:CHARGEOFFDATE='--/--/--' AND
+ LOAN:BALANCE>$0.00 AND 
+ LOAN:OPENDATE>=STARTDATE
+END
+
+SORT
+ LOAN:OPENDATE
+END
+ 
+PRINT TITLE="WARR.GAP.LETTERS" REPORTCATEGORY="LOANREPORT"  
+ GAP       = "No"
+ WARRANTY  = "No"
+ SELLER    = ""
+ COLLYEAR  = 0000
+ COLLMAKE  = ""
+ COLLMODEL = "" 
+ COL=001 ACCOUNT:NUMBER
+ COL=013 LOAN:ID
+ FOR EACH LOAN TRACKING WITH LOAN TRACKING:TYPE=30
+  DO
+   SELLER    = LOAN TRACKING:USERCHAR12  
+   COLLYEAR  = LOAN TRACKING:USERCODE1
+   COLLMAKE  = LOAN TRACKING:USERCHAR1
+   COLLMODEL = LOAN TRACKING:USERCHAR2
+   IF LOAN TRACKING:USERCODE3 = 1 THEN
+    DO
+     GAP = "Yes"
+    END
+   IF LOAN TRACKING:USERCODE4 = 1 THEN
+    DO
+     WARRANTY = "Yes"
+    END
+   COL=022 "GAP: "+GAP
+   COL=035 "WAR: "+WARRANTY  
+   COL=054 LOAN:OPENDATE 
+   NEWLINE
+  END
+ IF GAP = "No" AND WARRANTY = "Yes" THEN
+  DO
+   CALL LETTER1
+  END 
+ IF GAP = "Yes" AND WARRANTY = "No" THEN
+  DO
+   CALL LETTER2
+  END 
+ IF GAP = "No" AND WARRANTY = "No" THEN
+  DO
+   CALL LETTER3
+  END      
+END
+
+PROCEDURE ERRORHANDLER
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXTIGNORE)
+ PRINT "Error: "+ERRORTEXT
+ NEWLINE
+ TERMINATE
+END
+
+#INCLUDE "WARR.GAP.LETTER.1"
+#INCLUDE "WARR.GAP.LETTER.2"
+#INCLUDE "WARR.GAP.LETTER.3"

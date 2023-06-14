@@ -1,0 +1,201 @@
+[
+****************************************************************************************
+*****  Copyright 2022 CUTEK. All rights reserved.                     rev 01-2022  *****
+*****                                                                              *****
+*****  This licensed source code may not be reproduced, displayed, modified or     *****
+*****  distributed without the express prior written permission of the copyright   *****
+*****  holder. As implemented with CUTEK products, code is licensed only for the   *****
+*****  license term of the agreement. For further information, contact             *****
+*****  sales@cutek.com                                                             *****
+****************************************************************************************
+
+ Client name:  Austin Telco
+ File name:    CUTEK.BIZRISK.CHECK
+ Created by:   CUTEK, Inc. - Marc Middleton
+ Created on:   December 2022
+ CUTEK Ticket: 32283
+ 
+ Description:
+ #005-Business Risk Assessment Report
+ I have a report that I have been working on with a user for a while now that I think 
+  needs to read through Transaction History but I know that sometimes that can take a while to run through.
+  
+ Here’s the details. The report name is AJS.BIZRISK.CHECK
+  
+ The original request from the user was this: 
+ Need a report created for recurring use to show business accounts with Business Risk Assessment last done over 1 year ago. 
+ Tracking Type 37 is Business Risk Assessment. 
+ I was able to get the report they wanted at the time.
+  
+ But then they wanted the branch number from that days transaction to narrow down the reported items. 
+ Only accounts where the transaction was done in a branch should be on this report. 
+ The report should only be looking at the previous business day. 
+ So if the report was run tonight it should only be looking for accounts that did a transaction today at a branch that still has a BRA older than 1 year.
+ 
+ The goal is to identify tellers that are skipping the assessment on a daily basis. 
+  
+ I guess we need to isolate the report to only look through the current day’s transactions and if the account’s BRA is older than a year when ran.
+  
+ Thanks,
+ Avery Sneed
+ -----------------------------------------------------------------
+ Any type of transaction done at a branch. 
+ We have 29 branches but exclude 0 and 5 those aren’t physical branches. 
+ The Risk Review Date is the date they want to see if it is a year older but a transaction was done in a branch. 
+ The date of the transaction would have to come from the transaction itself. 
+ I thought including the activity date would suffice but they want to know which branch the transaction was done at.
+  
+ If any transaction is done today at a branch but the BRA is older than a year (based on that Risk Review Date) 
+  that account should be on the report is basically what they are looking for. 
+ Before the transaction tellers should be checking tracking 37 and checking the date and if the date is older than a year they are supposed to perform an assessment and
+  they want a report of the Business Accounts where this assessment is being skipped when it should not be.
+  
+ Thanks,
+ Avery Sneed
+ 
+ Modified by:  
+ Modified on:  
+ Modification: 
+]
+TARGET=ACCOUNT
+
+DEFINE
+ BRA=37
+ BUSACCT=16
+ RiskReviewDate=DATE
+ LastRiskReviewDate=DATE
+ LastActivity=DATE
+ NoTransDate=DATE
+ TransCheckDate=DATE
+ L=NUMBER
+ T=NUMBER
+ TRANSTYPE=CHARACTER(1) ARRAY(999)
+ TRANSID=CHARACTER(4) ARRAY(999)
+ TRANSSOURCECODE=CHARACTER(1) ARRAY(999)
+ TRANSACTIONCODE=CHARACTER(1) ARRAY(999)
+ TRANSEFFECTIVEDATE=DATE ARRAY(999)
+ TRANSAMOUNT=MONEY ARRAY(999)
+ TRANSBRANCH=NUMBER ARRAY(999) 
+ TRANSUSER=NUMBER ARRAY(999) 
+ Z=NUMBER
+ ACCTSFOUND=NUMBER
+END
+
+SETUP
+ LastRiskReviewDate = SYSTEMDATE-365
+ TransCheckDate = PREVSYSTEMDATE
+END
+
+SELECT
+ ACCOUNT:CLOSEDATE='--/--/--' AND
+ ANYWARNING(ACCOUNT,BUSACCT)
+END
+
+PRINT TITLE="CUTEK.BIZRISK.CHECK" REPORTCATEGORY="ACCOUNTRPT"
+ HEADERS
+  COL=001 "Account"
+  COL=023 RIGHT "Last Reviewed"
+  COL=033 RIGHT "NoTrans"  
+  COL=043 RIGHT "Activity"
+  COL=046 "S"
+  COL=047 "A"
+  COL=050 "TYPE"
+  COL=067 RIGHT "TransDate"
+  COL=080 RIGHT "TransAmnt"
+  COL=084 "Branch"
+  COL=093 "User#"  
+  NEWLINE  
+  COL=001 REPEATCHR("=",97)
+ END 
+ LastActivity   = ACCOUNT:ACTIVITYDATE
+ NoTransDate    = '--/--/--'
+ RiskReviewDate = '--/--/--'
+ FOR EACH TRACKING WITH TRACKING:TYPE=BRA AND TRACKING:USERDATE1<LastRiskReviewDate
+  DO
+   RiskReviewDate = TRACKING:USERDATE1
+   NoTransDate = RiskReviewDate + 365
+  END  
+ IF NoTransDate <> '--/--/--' THEN
+  DO 
+   CALL TRANSACTIONSEARCH
+   IF T > 0 THEN
+    DO
+     ACCTSFOUND = ACCTSFOUND + 1
+     COL=001 ACCOUNT:NUMBER
+     COL=023 RiskReviewDate
+     COL=033 NoTransDate
+     COL=043 LastActivity     
+     FOR L=1 TO T
+      DO
+       COL=046 TRANSSOURCECODE(L)
+       COL=047 TRANSACTIONCODE(L)
+       COL=050 TRANSTYPE(L)
+       COL=051 TRANSID(L)              
+       COL=067 TRANSEFFECTIVEDATE(L)
+       COL=080 TRANSAMOUNT(L)
+       COL=084 FORMAT("9999",TRANSBRANCH(L))
+       COL=093 FORMAT("9999",TRANSUSER(L))
+       NEWLINE
+      END
+     NEWLINE
+    END 
+  END
+END
+
+TOTAL
+ NEWLINE
+ COL=001 REPEATCHR("=",97)
+ NEWLINE
+ COL=001 "Total Accounts Found"
+ COL=066 ACCTSFOUND
+ NEWLINE
+ COL=001 REPEATCHR("=",97)
+ newline
+END 
+
+PROCEDURE TRANSACTIONSEARCH
+ T=0
+ FOR Z=1 TO 999
+  DO
+   TRANSTYPE(Z)=""
+   TRANSID(Z)=""
+   TRANSSOURCECODE(Z)=""
+   TRANSACTIONCODE(Z)=""
+   TRANSEFFECTIVEDATE(Z)='--/--/--'
+   TRANSAMOUNT(Z)=$0.00
+   TRANSBRANCH(Z)=0
+   TRANSUSER(Z)=0000
+  END
+ FOR EACH SHARE
+  DO
+   FOR EACH SHARE TRANSACTION WITH SHARE TRANSACTION:EFFECTIVEDATE>=TransCheckDate AND SHARE TRANSACTION:BRANCH<>0 AND SHARE TRANSACTION:BRANCH<>5 AND SHARE TRANSACTION:ACTIONCODE<>"C"
+    DO
+     T=T+1
+     TRANSTYPE(T)="S"
+     TRANSID(T)=SHARE TRANSACTION:ID
+     TRANSSOURCECODE(T)=SHARE TRANSACTION:SOURCECODE
+     TRANSACTIONCODE(T)=SHARE TRANSACTION:ACTIONCODE
+     TRANSEFFECTIVEDATE(T)=SHARE TRANSACTION:EFFECTIVEDATE
+     TRANSAMOUNT(T)=SHARE TRANSACTION:TRANAMOUNT
+     TRANSBRANCH(T)=SHARE TRANSACTION:BRANCH
+     TRANSUSER(T)=SHARE TRANSACTION:USERNUMBER
+    END
+   UNTIL SHARE TRANSACTION:EFFECTIVEDATE<TransCheckDate 
+  END
+ FOR EACH LOAN
+  DO
+   FOR EACH LOAN TRANSACTION WITH LOAN TRANSACTION:EFFECTIVEDATE>=TransCheckDate AND LOAN TRANSACTION:BRANCH<>0 AND LOAN TRANSACTION:BRANCH<>5 AND LOAN TRANSACTION:ACTIONCODE<>"C"
+    DO
+     T=T+1
+     TRANSTYPE(T)="L"
+     TRANSID(T)=LOAN TRANSACTION:ID
+     TRANSSOURCECODE(T)=LOAN TRANSACTION:SOURCECODE
+     TRANSACTIONCODE(T)=LOAN TRANSACTION:ACTIONCODE
+     TRANSEFFECTIVEDATE(T)=LOAN TRANSACTION:EFFECTIVEDATE
+     TRANSAMOUNT(T)=LOAN TRANSACTION:TRANAMOUNT
+     TRANSBRANCH(T)=LOAN TRANSACTION:BRANCH
+     TRANSUSER(T)=LOAN TRANSACTION:USERNUMBER
+    END    
+   UNTIL LOAN TRANSACTION:EFFECTIVEDATE<TransCheckDate  
+  END
+END

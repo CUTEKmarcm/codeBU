@@ -1,0 +1,129 @@
+[
+****************************************************************************************
+*****  Copyright 2022 CUTEK. All rights reserved.                     rev 01-2022  *****
+*****                                                                              *****
+*****  This licensed source code may not be reproduced, displayed, modified or     *****
+*****  distributed without the express prior written permission of the copyright   *****
+*****  holder. As implemented with CUTEK products, code is licensed only for the   *****
+*****  license term of the agreement. For further information, contact             *****
+*****  sales@cutek.com                                                             *****
+****************************************************************************************
+
+ Client name:  Austin Telco
+ File name:    WARR.GAP.LETTER.2
+ Created by:   CUTEK, Inc. - Marc Middleton
+ Created on:   NOVEMBER 2022
+ CUTEK Ticket: 32282
+ 
+ Description:
+ We have 3 letters we’d like produced based on 2 fields in Loan Tracking 30, GAP and Warr (Warranty) for Loan Types 81-84. 
+ Our lending department would like these letters auto printed, similar to how GH.BUSINESSLOANS.LETTERHEAD works. 
+ We will probably need a way to exclude the account if a letter has already been generated 
+  but I am confirming with our Lending department if that is something they want.
+ Got confirmation they want this to be a one time letter per loan ID. 
+ 
+ Letter 2 = No Warranty
+ 
+ Modified by:  
+ Modified on:  
+ Modification: 
+]
+PROCEDURE LETTER2
+ OUTPUTSWITCH(OUTPUTCHANNEL2,ERRORTEXT)
+ NEWLINE
+ COL=005 FORMAT("99/99/9999",SYSTEMDATE)
+ NEWLINE
+ NEWLINE
+ COL=005 CAPITALIZE(NAME:LONGNAME)
+ NEWLINE
+ COL=005 CAPITALIZE(NAME:STREET)+" "+CAPITALIZE(NAME:EXTRAADDRESS)
+ NEWLINE
+ COL=005 CAPITALIZE(NAME:CITY)+" "+NAME:STATE+"  "+NAME:ZIPCODE
+ NEWLINE
+ NEWLINE
+ COL=005 "Dear "+CAPITALIZE(NAME:LONGNAME)+","
+ NEWLINE
+ NEWLINE
+ COL=005 "We want to thank you for financing your auto loan with Austin Telco Federal Credit Union!  We greatly appreciate your"
+ NEWLINE
+ COL=005 "membership and look forward to serving your financial needs for years to come."
+ NEWLINE
+ NEWLINE 
+ COL=005 "We noticed that when you purchased your "+FORMAT("9999",COLLYEAR)+" "+CAPITALIZE(COLLMAKE)+" from "+CAPITALIZE(SELLER)+", you did not include an"
+ NEWLINE
+ COL=005 "extended warranty to protect your vehicle from unexpected mechanical breakdown.  By being a member of Austin Telco FCU"
+ NEWLINE
+ COL=005 "you now have access to these loan protection products at a wholesale level price, so you don't have to pay full retail"
+ NEWLINE
+ COL=005 "somewhere else (average cost for protection is around $1900)."
+ NEWLINE
+ NEWLINE
+ COL=005 "We offer affordable plans for both new and used vehicles which include:"
+ NEWLINE
+ COL=011 "-Zero Deductible"
+ NEWLINE
+ COL=011 "-Nationwide Coverage"
+ NEWLINE
+ COL=011 "-24/7/365 Emergency Roadside Assistance"
+ NEWLINE
+ COL=011 "-30-day Money-Back Guarantee"
+ NEWLINE
+ COL=011 "-Transferable"
+ NEWLINE
+ COL=011 "-Trip Interruption"
+ NEWLINE
+ COL=011 "-Direct Claim Payments via Visa/Mastercard"
+ NEWLINE
+ COL=011 "-Total Loss Refund  (If your car is declared a total loss by the insurance company due to collision or act of God,"
+ NEWLINE
+ COL=032 "we will refund the entire original premium of your service agreement)."
+ NEWLINE   
+ NEWLINE    
+ COL=005 "If you have any questions or would like to receive a quote for coverage of your vehicle, please contact Michael Olivares at"
+ NEWLINE
+ COL=005 "512-302-5555, ext 7324."
+ NEWLINE
+ NEWLINE 
+ COL=005 "We will keep you informed of any new services or products we offer or any information that is important for you to know about"
+ NEWLINE
+ COL=005 "your membership through our monthly eNewsletter. We also encourage you to visit our web site at www.atfcu.org for detailed"
+ NEWLINE
+ COL=005 "information about all our products and services, membership news, Internet specials, and as an educational resource."
+ NEWLINE
+ NEWLINE 
+ COL=005 "We offer a wide array of loan and savings products in addition to our Internet convenience services, such as online Bill Pay"
+ NEWLINE
+ COL=005 "(up to 15 FREE per month), 300+ FEE FREE ATM's, Online Statements, and 24/7 access to your account information through"
+ NEWLINE
+ COL=005 "Online Banking and our Mobile App.   We are currently offering extremely competitive auto, mortgage, and home equity loan rates"
+ NEWLINE
+ COL=005 "and outstanding certificate of deposit rates."
+ NEWLINE
+ NEWLINE
+ COL=005 "We want your feedback. We want to know if we can serve you better or offer you a service that we do not currently have."
+ NEWLINE
+ COL=005 "To make it easy on you, we have an email address specifically for members to give us feedback; memberfeedback@atfcu.org."
+ NEWLINE
+ COL=005 "You may also contact us by phone or in person."
+ NEWLINE
+ NEWLINE
+ COL=005 "Thank you for choosing Austin Telco Federal Credit Union."
+ NEWLINE
+ NEWLINE 
+ COL=005 "Sincerely,"
+ NEWLINE
+ NEWLINE   
+ NEWLINE
+ NEWLINE 
+ COL=005 "Pamela Williams Cotton"
+ NEWLINE
+ COL=005 "Vice President of Member Services"
+ NEWLINE
+ COL=005 "512-302-5555, ext. 7000"
+ NEWLINE
+ COL=005 "memberfeedback@atfcu.org"
+ NEWLINE
+ NEWLINE 
+ NEWPAGE 
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)
+END

@@ -1,0 +1,1262 @@
+SUBROUTINE DEMAND WINDOWS
+
+TARGET=ACCOUNT
+
+DEFINE
+  #INCLUDE "RD.GETDATA.DEF"
+  #INCLUDE "PS.IDQA.DEF"
+
+
+  BASE = NUMBER
+  DECISION = CHARACTER
+  DECISIONREASON = CHARACTER
+  DECISIONREASONCODE = CHARACTER
+
+  SCORE = NUMBER
+  FMPERROR = CHARACTER
+  TRLOC = NUMBER
+  CUSTOMERID = CHARACTER
+
+  MISSINGINFO = CHARACTER ARRAY(11)
+  ISVALID = NUMBER
+
+  IDACHR1 = CHARACTER
+  IDACHR2 = CHARACTER
+  IDACHR3 = CHARACTER
+  IDACHR4 = CHARACTER
+  IDACHR5 = CHARACTER
+  IDACHR6 = CHARACTER
+  IDACHR7 = CHARACTER
+  IDACHR8 = CHARACTER
+  IDACHR9 = CHARACTER
+
+  IDADLST = CHARACTER
+  IDADLNUMBER = CHARACTER
+  IDAMMN = CHARACTER
+  IDAEMAIL = CHARACTER
+  IDAEMAIL2 = CHARACTER
+  IDAHOMEPHONE = CHARACTER
+  IDAWORKPHONE = CHARACTER
+  IDAMOBILEPHONE = CHARACTER
+
+  IDADATE1 = DATE
+  IDACODE1 = NUMBER
+  IDACODE2 = NUMBER
+  IDANUMBER1 = NUMBER
+
+ FNUM=NUMBER
+ FMERROR=CHARACTER
+ FLINE=CHARACTER
+ R=NUMBER
+ REASONCODE=NUMBER ARRAY(99)
+ REASONCHAR=CHARACTER ARRAY(99)
+ IDSUB=NUMBER
+ SELECTEDREASONCODE=NUMBER
+ SELECTEDREASONCHAR=CHARACTER
+ OTHERREASON=CHARACTER
+END
+
+SETUP
+
+  CFGFILENAME = "PS.IDQA.CFG"
+  CUSTIDFILENAME = "PS.IDQA.BRANCHID"
+  Q = CTRLCHR(34)
+  bool(TRUE) = "true"
+  bool(FALSE) = "false"
+
+  CALL GETQAREASON
+  [CALL GETCFGINFO]
+  CALL LOADSETTINGS
+
+  URL2 = SEGMENT(URL, 1, CHARACTERSEARCH(URL, "rest/") - 1)
+  CHARSTOESCAPE = "'"
+
+  [selection screen]
+  IF (@ENVPARAMCHAR1 = "" AND @ENVPARAMNUMBER1 = 0) THEN
+  DO  
+    IDASCREEN = 0
+    CALL GENERATESELECTIONHTML
+    RETCOMMAND = "continue"
+
+    INITSUBROUTINE(ERRORTEXT)
+
+    WHILE (RETCOMMAND <> "close")
+    DO
+      CALL HANDLEHTMLINPUT
+      
+      IF RETCOMMAND = "Validate" THEN
+      DO
+        CALL POPULATEVARS
+        CALL VALIDATEVARS
+
+        IF ISVALID = FALSE THEN
+        DO
+          CALL GENERATEINFOHTML
+        END
+        ELSE
+        DO
+          @ENVPARAMCHAR1 = TMPREC
+          @ENVPARAMNUMBER1 = TMPLOC
+          RETCOMMAND = "close"
+          [CALL LAUNCHDRIVER]
+        END
+      END
+      
+      IF RETCOMMAND = "Select" THEN
+      DO
+        CALL GENERATESELECTIONHTML
+      END
+
+
+    END [While]
+  END
+
+  [running as subroutine with values passed]
+  IF (@ENVPARAMCHAR3 <> "" AND @ENVPARAMNUMBER1 = 0) THEN
+  DO
+    RETCOMMAND = ""
+    IDACHR1=@ENVPARAMCHAR1
+    IDACHR2=@ENVPARAMCHAR2
+    IDACHR3=@ENVPARAMCHAR3
+    IDACHR4=@ENVPARAMCHAR4
+    IDACHR5=@ENVPARAMCHAR5
+    IDACHR6=@ENVPARAMCHAR6
+    IDACHR7=@ENVPARAMCHAR7
+    IDACHR8=@ENVPARAMCHAR8
+    IDACHR9=""
+    IDADATE1=@ENVPARAMDATE1
+    IDACODE1=@ENVPARAMCODE1
+    IDACODE2=0
+
+    CALL GETCUSTID
+
+    CALL VERIFICATION
+  END
+
+  [using record locator from selection screen]
+  IF (@ENVPARAMCHAR1 <> "" AND @ENVPARAMNUMBER1 <> 0) THEN
+  DO
+    RETCOMMAND = ""
+    IDASCREEN = 1
+    CALL GETCUSTID
+
+    TMPREC = @ENVPARAMCHAR1
+    TMPLOC = @ENVPARAMNUMBER1
+    CALL POPULATEVARS
+
+    CALL VERIFICATION
+
+    IF FORMSPECFILE<>"" AND FORMSPECFILE<>"null" AND IDANUMBER1<> 0 THEN
+    DO
+      @ENVARGNUMBER1 = IDANUMBER1
+      CALL LAUNCHFORM
+    END
+  END
+
+END
+
+PRINT TITLE="PS.IDQA.STANDALONE.XXX"
+  SuppressNewLine
+END
+
+PROCEDURE VERIFICATION
+  WHILE (RETCOMMAND <> "close")
+  DO
+    IF RETCOMMAND = "" THEN
+      CALL GENERATEHTML
+    CALL HANDLEHTMLINPUT
+    IF DECISION = "Pass" OR DECISION = "Fail" OR DECISION = "Refer" THEN
+    DO
+     CALL CREATEDECTRACKING
+
+      IF DISPLAYDECISIONSCREEN = 1 THEN
+      DO
+        CALL DISPLAYDECISION
+        CALL HANDLEHTMLINPUT
+      END
+      RETCOMMAND = "close"
+    END
+
+    [RETCOMMAND = "close"]
+  END [While]
+END
+
+PROCEDURE LAUNCHFORM
+  IF TMPREC = "Application" THEN
+  DO
+    @ENVARGCODE1=1
+  END
+  ELSE
+  DO
+    @ENVARGCODE1=0
+  END
+  @ENVARGCHAR1=IDACHR9
+
+  EXECUTE(FORMSPECFILE, ERRORTEXT)
+  IF (ERRORTEXT <> "") THEN
+  DO
+    POPUPMESSAGE(0,"ERROR EXECUTING " + FORMSPECFILE + ": "+ERRORTEXT)
+  END
+END
+
+PROCEDURE GENERATESELECTIONHTML
+  HTMLVIEWOPEN(0)
+  HTMLVIEWLINE("<!DOCTYPE html>") 
+  HTMLVIEWLINE("<html>")
+  HTMLVIEWLINE("<head>")
+  [HTMLVIEWLINE("<meta http-equiv='Access-Control-Allow-Origin' content='*'>")]
+  HTMLVIEWLINE("<meta charset='iso-8859-1'>")
+  HTMLVIEWLINE("<meta http-equiv='X-UA-Compatible' content='IE=edge' />")
+  HTMLVIEWLINE("<title>Episys Identity Q&A Integration</title>")
+
+  [HTMLVIEWLINE("<link href='" + URL2 + "bootstrap.min.css' rel='stylesheet' />")]
+  HTMLVIEWLINE("<link href='" + URL2 + "css/bootstrap.min.css' rel='stylesheet' />")
+  HTMLVIEWLINE("<link href='" + URL2 + "css/angular-growl.min.css' rel='stylesheet' />")
+  
+  HTMLVIEWLINE("<script src='" + URL2 + "js/jquery-2.1.4.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/bootstrap.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/angular.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/lodash.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/ui-bootstrap-tpls-1.3.2.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/angular-growl.min.js'></script>")
+  
+  HTMLVIEWLINE("<script>var versionNum = '" + VERSIONNUMBER + "'</script>")
+  HTMLVIEWLINE("<script>var currYear = '" + CURRENTYEAR + "'</script>")
+
+  [add support for JSON parsing for older browsers]
+  [HTMLVIEWLINE("<script language='javascript' type='text/javascript' src='" + URL2 + "json2.js'></script>")]
+
+  [Loading Javascript data]
+  HTMLVIEWLINE("<script>")
+  FILENAME="PS.IDQA.JS"
+  CALL GETRAWTEXT
+  HTMLVIEWLINE("</script>")
+
+  HTMLVIEWLINE("<script>")
+  CALL GETNAMES
+  HTMLVIEWLINE("</script>")
+
+  HTMLVIEWLINE("</head>")
+  [HTMLVIEWLINE("<body>")]
+  HTMLVIEWLINE("<body onload='populateForm(nameList);'>")
+  
+  PGDESC = "Name Selection"
+  CALL GETHEADER
+
+  HTMLVIEWLINE("    <div class='container' id='questionsContainer'>")
+  HTMLVIEWLINE("      <div class='row'>")
+  HTMLVIEWLINE("        <div class='col-md-12'>")
+  HTMLVIEWLINE("          <form name='idaForm' method='post' action='symitar://HTMLView~Action=Post' id='idaForm'>")
+  HTMLVIEWLINE("            <fieldset>")
+  HTMLVIEWLINE("              <div class='panel panel-default'>")
+  HTMLVIEWLINE("                <div class='panel-heading' id='pHeading' style='display:none'></div>")
+  HTMLVIEWLINE("                <div class='panel-body' id='pBody'></div>")
+  HTMLVIEWLINE("                <div class='panel-footer' id='pFooter' style='display:none'></div>")
+  HTMLVIEWLINE("              </div>")
+  HTMLVIEWLINE("            </fieldset>")
+
+  HTMLVIEWLINE("            <input type='hidden' name='record' id='record' value=''> ")
+  HTMLVIEWLINE("            <input type='hidden' name='id' id='id' value=''> ")
+  HTMLVIEWLINE("            <input type='hidden' name='loc' id='loc' value=''> ")
+  HTMLVIEWLINE("            <input type='hidden' name='retCommand' id='retCommand' value='close'> ")
+  HTMLVIEWLINE("<input type='button' class='btn btn-default' value='Exit' id='Exit' onclick='postForm("+Q+"idaForm"+Q+", "+Q+"close"+Q+")'>")
+  HTMLVIEWLINE("<input type='button' class='btn btn-primary' value='Submit' id='Submit' ")
+  HTMLVIEWLINE(" onclick='if (formValidator()) {setRecFlds();postForm("+Q+"idaForm"+Q+", "+Q+"Validate"+Q+")}'>")
+  HTMLVIEWLINE("          </form>")
+  
+  HTMLVIEWLINE("        </div>")
+  HTMLVIEWLINE("      </div>")
+  HTMLVIEWLINE("    </div>")
+
+  CALL FOOTER
+
+
+  HTMLVIEWLINE("</body>")
+  HTMLVIEWLINE("</html>")
+  HTMLVIEWDISPLAY
+
+END
+
+PROCEDURE GETNAMES
+  FOR ACCOUNT ACCOUNT:NUMBER
+  DO
+    HTMLVIEWLINE("var nameList = [];")
+    FOR EACH NAME WITH (NAME:DEATHDATE='--/--/--' AND
+                        NAME:EFFECTIVEDATE<=SYSTEMDATE AND
+                       (NAME:EXPIRATIONDATE>SYSTEMDATE OR
+                        NAME:EXPIRATIONDATE='--/--/--'))
+    DO
+      [POPUPMESSAGE(0,ACCOUNTNAMETYPES)]
+      LFTHELIST = ACCOUNTNAMETYPES
+      LFTHEVALUE = NAME:TYPE
+      CALL LISTFIND
+      IF LFFOUND = TRUE THEN
+      DO
+        HTMLVIEWLINE("var obj = new Object();")
+        HTMLVIEWLINE("obj.record = 'Account';")
+        tmpChr = NAME:LONGNAME
+        CALL ESCAPECHARS
+        HTMLVIEWLINE("obj.name = '" + tmpChr2 + "';")
+        tmpChr = NAME:FIRST
+        CALL ESCAPECHARS
+        HTMLVIEWLINE("obj.firstName = '" + tmpChr2 + "';")
+        tmpChr = NAME:LAST
+        CALL ESCAPECHARS
+        HTMLVIEWLINE("obj.lastName = '" + tmpChr2 + "';")
+        HTMLVIEWLINE("obj.loc = '" + FORMAT("#########9",NAME:LOCATOR) + "'.replace(/^\s*/,'');")
+        HTMLVIEWLINE("obj.toString = function () { return this.record + ': ' + this.name; };")
+        HTMLVIEWLINE("obj.val = function () { return this.record + ';;' + this.loc; };")
+        HTMLVIEWLINE("nameList.push(obj);")
+      END
+    END [For Name]
+
+    FOR EACH SHARE WITH (SHARE:CLOSEDATE='--/--/--')
+    DO
+      FOR EACH SHARE NAME WITH (SHARE NAME:EXPIRATIONDATE>SYSTEMDATE OR 
+                                SHARE NAME:EXPIRATIONDATE='--/--/--')
+      DO
+        LFTHELIST = SHARENAMETYPES
+        LFTHEVALUE = SHARE NAME:TYPE
+        CALL LISTFIND
+        IF LFFOUND = TRUE THEN
+        DO
+          HTMLVIEWLINE("var obj = new Object();")
+          HTMLVIEWLINE("obj.record = 'Share';")
+          tmpChr = SHARE NAME:LONGNAME
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.name = '" + tmpChr2 + "';")
+          tmpChr = SHARE NAME:FIRST
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.firstName = '" + tmpChr2 + "';")
+          tmpChr = SHARE NAME:LAST
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.lastName = '" + tmpChr2 + "';")
+          HTMLVIEWLINE("obj.id = '" + SHARE:ID + "';")
+          HTMLVIEWLINE("obj.loc = '" + FORMAT("#########9",SHARE NAME:LOCATOR) + "'.replace(/^\s*/,'');")
+          HTMLVIEWLINE("obj.toString = function () { return this.record + ' ' + this.id + ': ' + this.name; };")
+          HTMLVIEWLINE("obj.val = function () { return this.record + ';' + this.id + ';' + this.loc; };")
+          HTMLVIEWLINE("nameList.push(obj);")
+        END
+
+      END [For Share Name]
+      
+    END [For Share]
+
+    FOR EACH LOAN WITH (LOAN:CLOSEDATE='--/--/--')
+    DO
+      FOR EACH LOAN NAME WITH (LOAN NAME:EXPIRATIONDATE>SYSTEMDATE OR 
+                                LOAN NAME:EXPIRATIONDATE='--/--/--')
+      DO
+        LFTHELIST = LOANNAMETYPES
+        LFTHEVALUE = LOAN NAME:TYPE
+        CALL LISTFIND
+        IF LFFOUND = TRUE THEN
+        DO
+          HTMLVIEWLINE("var obj = new Object();")
+          HTMLVIEWLINE("obj.record = 'Loan';")
+          tmpChr = LOAN NAME:LONGNAME
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.name = '" + tmpChr2 + "';")
+          tmpChr = LOAN NAME:FIRST
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.firstName = '" + tmpChr2 + "';")
+          tmpChr = LOAN NAME:LAST
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.lastName = '" + tmpChr2 + "';")
+          HTMLVIEWLINE("obj.id = '" + LOAN:ID + "';")
+          HTMLVIEWLINE("obj.loc = '" + FORMAT("#########9",LOAN NAME:LOCATOR) + "'.replace(/^\s*/,'');")
+          HTMLVIEWLINE("obj.toString = function () { return this.record + ' ' + this.id + ': ' + this.name; };")
+          HTMLVIEWLINE("obj.val = function () { return this.record + ';' + this.id + ';' + this.loc; };")
+          HTMLVIEWLINE("nameList.push(obj);")
+        END
+
+      END [For Loan Name]
+      
+    END [For Loan]
+
+    FOR EACH EXTERNALLOAN WITH (EXTERNALLOAN:CLOSEDATE='--/--/--')
+    DO
+      FOR EACH EXTERNALLOAN NAME WITH (EXTERNALLOAN NAME:EXPIRATIONDATE>SYSTEMDATE OR 
+                                EXTERNALLOAN NAME:EXPIRATIONDATE='--/--/--')
+      DO
+        LFTHELIST = EXTERNALLOANNAMETYPES
+        LFTHEVALUE = EXTERNALLOAN NAME:TYPE
+        CALL LISTFIND
+        IF LFFOUND = TRUE THEN
+        DO
+          HTMLVIEWLINE("var obj = new Object();")
+          HTMLVIEWLINE("obj.record = 'External Loan';")
+          tmpChr = EXTERNALLOAN NAME:LONGNAME
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.name = '" + tmpChr2 + "';")
+          tmpChr = EXTERNALLOAN NAME:FIRST
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.firstName = '" + tmpChr2 + "';")
+          tmpChr = EXTERNALLOAN NAME:LAST
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.lastName = '" + tmpChr2 + "';")
+          HTMLVIEWLINE("obj.loc = '" + FORMAT("#########9",EXTERNALLOAN NAME:LOCATOR) + "'.replace(/^\s*/,'');")
+          HTMLVIEWLINE("obj.toString = function () { return this.record + ': ' + this.name; };")
+          HTMLVIEWLINE("obj.val = function () { return this.record + ';;' + this.loc; };")
+          HTMLVIEWLINE("nameList.push(obj);")
+        END
+
+      END [For Externalloan Name]
+      
+    END [For Externalloan]
+
+    FOR EACH LOANAPP 
+    DO
+      FOR EACH LOANAPP PERSON 
+      DO
+        LFTHELIST = APPLICATIONNAMETYPES
+        LFTHEVALUE = LOANAPP PERSON:DEPENDENTAGE:9
+        CALL LISTFIND
+        IF LFFOUND = TRUE THEN
+        DO
+          HTMLVIEWLINE("var obj = new Object();")
+          HTMLVIEWLINE("obj.record = 'Application';")
+          tmpChr = LOANAPP PERSON:LONGNAME
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.name = '" + tmpChr2 + "';")
+          tmpChr = LOANAPP PERSON:FIRST
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.firstName = '" + tmpChr2 + "';")
+          tmpChr = LOANAPP PERSON:LAST
+          CALL ESCAPECHARS
+          HTMLVIEWLINE("obj.lastName = '" + tmpChr2 + "';")
+          HTMLVIEWLINE("obj.id = '" + LOANAPP:ID + "';")
+          HTMLVIEWLINE("obj.loc = '" + FORMAT("#########9",LOANAPP PERSON:LOCATOR) + "'.replace(/^\s*/,'');")
+          HTMLVIEWLINE("obj.toString = function () { return this.record + ' ' + this.id + ': ' + this.name; };")
+          HTMLVIEWLINE("obj.val = function () { return this.record + ';' + this.id + ';' + this.loc; };")
+          HTMLVIEWLINE("nameList.push(obj);")
+        END
+
+      END [For Loanapp Person]
+    END [For Loanapp]
+
+  END [For Account]
+
+END
+
+
+PROCEDURE POPULATEVARS
+  FOR ACCOUNT ACCOUNT:NUMBER
+  DO
+    IF TMPREC = "Account" THEN
+    DO
+      FOR EACH NAME WITH NAME:LOCATOR = TMPLOC
+      DO
+        IDACHR1=CAPITALIZE(NAME:FIRST)
+        IDACHR2=CAPITALIZE(NAME:MIDDLE)
+        IDACHR3=CAPITALIZE(NAME:LAST)
+        IDACHR4=CAPITALIZE(NAME:STREET)
+        IDACHR5=CAPITALIZE(NAME:CITY)
+        IDACHR6=NAME:STATE
+        IDACHR7=NAME:ZIPCODE
+        IDACHR8=NAME:SSN
+        IDACHR9=""
+        IDADATE1=NAME:BIRTHDATE
+        IDACODE1=NAME:TYPE
+        IDACODE2=0
+
+        [cant loop over identidtype]
+        IF NAME:IDENTIDTYPE:3 = 2 THEN
+        DO
+          IDADLST=NAME:IDENTIDDESCRIPTION:3
+          IDADLNUMBER=NAME:IDENTIDNUMBER:3
+      END
+        IF NAME:IDENTIDTYPE:2 = 2 THEN
+        DO
+          IDADLST=NAME:IDENTIDDESCRIPTION:2
+          IDADLNUMBER=NAME:IDENTIDNUMBER:2
+    END
+        IF NAME:IDENTIDTYPE:1 = 2 THEN
+        DO
+          IDADLST=NAME:IDENTIDDESCRIPTION:1
+          IDADLNUMBER=NAME:IDENTIDNUMBER:1
+        END
+
+        IDAHOMEPHONE = NAME:HOMEPHONE
+        IDAWORKPHONE = NAME:WORKPHONE
+        IDAMOBILEPHONE = NAME:MOBILEPHONE
+
+        IDAMMN=CAPITALIZE(NAME:MOTHERSMAIDENNAME)
+        IDAEMAIL=NAME:EMAIL
+        IDAEMAIL2=NAME:ALTEMAIL
+      END
+    END
+    ELSE IF TMPREC = "Share" THEN
+    DO
+      FOR EACH SHARE WITH (SHARE:CLOSEDATE='--/--/--')
+      DO
+        FOR EACH SHARE NAME WITH SHARE NAME:LOCATOR = TMPLOC
+        DO
+          IDACHR1=CAPITALIZE(SHARE NAME:FIRST)
+          IDACHR2=CAPITALIZE(SHARE NAME:MIDDLE)
+          IDACHR3=CAPITALIZE(SHARE NAME:LAST)
+          IDACHR4=CAPITALIZE(SHARE NAME:STREET)
+          IDACHR5=CAPITALIZE(SHARE NAME:CITY)
+          IDACHR6=SHARE NAME:STATE
+          IDACHR7=SHARE NAME:ZIPCODE
+          IDACHR8=SHARE NAME:SSN
+          IDACHR9=""
+          IDADATE1=SHARE NAME:BIRTHDATE
+          IDACODE1=SHARE NAME:TYPE
+          IDACODE2=0
+
+          [cant loop over identidtype]
+          IF SHARE NAME:IDENTIDTYPE:3 = 2 THEN
+          DO
+            IDADLST=SHARE NAME:IDENTIDDESCRIPTION:3
+            IDADLNUMBER=SHARE NAME:IDENTIDNUMBER:3
+        END
+          IF SHARE NAME:IDENTIDTYPE:2 = 2 THEN
+          DO
+            IDADLST=SHARE NAME:IDENTIDDESCRIPTION:2
+            IDADLNUMBER=SHARE NAME:IDENTIDNUMBER:2
+      END
+          IF SHARE NAME:IDENTIDTYPE:1 = 2 THEN
+          DO
+            IDADLST=SHARE NAME:IDENTIDDESCRIPTION:1
+            IDADLNUMBER=SHARE NAME:IDENTIDNUMBER:1
+    END
+
+          IDAHOMEPHONE = SHARE NAME:HOMEPHONE
+          IDAWORKPHONE = SHARE NAME:WORKPHONE
+          IDAMOBILEPHONE = SHARE NAME:MOBILEPHONE
+
+          IDAMMN=CAPITALIZE(SHARE NAME:MOTHERSMAIDENNAME)
+          IDAEMAIL=SHARE NAME:EMAIL
+          IDAEMAIL2=SHARE NAME:ALTEMAIL
+        END
+      END
+    END
+    ELSE IF TMPREC = "Loan" THEN
+    DO
+      FOR EACH LOAN WITH (LOAN:CLOSEDATE='--/--/--')
+      DO
+        FOR EACH LOAN NAME WITH LOAN NAME:LOCATOR = TMPLOC
+        DO
+          IDACHR1=CAPITALIZE(LOAN NAME:FIRST)
+          IDACHR2=CAPITALIZE(LOAN NAME:MIDDLE)
+          IDACHR3=CAPITALIZE(LOAN NAME:LAST)
+          IDACHR4=CAPITALIZE(LOAN NAME:STREET)
+          IDACHR5=CAPITALIZE(LOAN NAME:CITY)
+          IDACHR6=LOAN NAME:STATE
+          IDACHR7=LOAN NAME:ZIPCODE
+          IDACHR8=LOAN NAME:SSN
+          IDACHR9=""
+          IDADATE1=LOAN NAME:BIRTHDATE
+          IDACODE1=LOAN NAME:TYPE
+          IDACODE2=0
+
+          [cant loop over identidtype]
+          IF LOAN NAME:IDENTIDTYPE:3 = 2 THEN
+          DO
+            IDADLST=LOAN NAME:IDENTIDDESCRIPTION:3
+            IDADLNUMBER=LOAN NAME:IDENTIDNUMBER:3
+        END
+          IF LOAN NAME:IDENTIDTYPE:2 = 2 THEN
+          DO
+            IDADLST=LOAN NAME:IDENTIDDESCRIPTION:2
+            IDADLNUMBER=LOAN NAME:IDENTIDNUMBER:2
+      END
+          IF LOAN NAME:IDENTIDTYPE:1 = 2 THEN
+          DO
+            IDADLST=LOAN NAME:IDENTIDDESCRIPTION:1
+            IDADLNUMBER=LOAN NAME:IDENTIDNUMBER:1
+    END
+
+          IDAHOMEPHONE = LOAN NAME:HOMEPHONE
+          IDAWORKPHONE = LOAN NAME:WORKPHONE
+          IDAMOBILEPHONE = LOAN NAME:MOBILEPHONE
+
+          IDAMMN=CAPITALIZE(LOAN NAME:MOTHERSMAIDENNAME)
+          IDAEMAIL=LOAN NAME:EMAIL
+          IDAEMAIL2=LOAN NAME:ALTEMAIL
+        END
+      END
+    END
+    ELSE IF TMPREC = "External Loan" THEN
+    DO
+      FOR EACH EXTERNALLOAN WITH (EXTERNALLOAN:CLOSEDATE='--/--/--')
+      DO
+        FOR EACH EXTERNALLOAN NAME WITH EXTERNALLOAN NAME:LOCATOR = TMPLOC
+        DO
+          IDACHR1=CAPITALIZE(EXTERNALLOAN NAME:FIRST)
+          IDACHR2=CAPITALIZE(EXTERNALLOAN NAME:MIDDLE)
+          IDACHR3=CAPITALIZE(EXTERNALLOAN NAME:LAST)
+          IDACHR4=CAPITALIZE(EXTERNALLOAN NAME:STREET)
+          IDACHR5=CAPITALIZE(EXTERNALLOAN NAME:CITY)
+          IDACHR6=EXTERNALLOAN NAME:STATE
+          IDACHR7=EXTERNALLOAN NAME:ZIPCODE
+          IDACHR8=EXTERNALLOAN NAME:SSN
+          IDACHR9=""
+          IDADATE1=EXTERNALLOAN NAME:BIRTHDATE
+          IDACODE1=EXTERNALLOAN NAME:TYPE
+          IDACODE2=0
+
+          [cant loop over identidtype]
+          IF EXTERNALLOAN NAME:IDENTIDTYPE:3 = 2 THEN
+          DO
+            IDADLST=EXTERNALLOAN NAME:IDENTIDDESCRIPTION:3
+            IDADLNUMBER=EXTERNALLOAN NAME:IDENTIDNUMBER:3
+        END
+          IF EXTERNALLOAN NAME:IDENTIDTYPE:2 = 2 THEN
+          DO
+            IDADLST=EXTERNALLOAN NAME:IDENTIDDESCRIPTION:2
+            IDADLNUMBER=EXTERNALLOAN NAME:IDENTIDNUMBER:2
+      END
+          IF EXTERNALLOAN NAME:IDENTIDTYPE:1 = 2 THEN
+          DO
+            IDADLST=EXTERNALLOAN NAME:IDENTIDDESCRIPTION:1
+            IDADLNUMBER=EXTERNALLOAN NAME:IDENTIDNUMBER:1
+    END
+
+          IDAHOMEPHONE = EXTERNALLOAN NAME:HOMEPHONE
+          IDAWORKPHONE = EXTERNALLOAN NAME:WORKPHONE
+          IDAMOBILEPHONE = EXTERNALLOAN NAME:MOBILEPHONE
+
+          IDAMMN=CAPITALIZE(EXTERNALLOAN NAME:MOTHERSMAIDENNAME)
+          IDAEMAIL=EXTERNALLOAN NAME:EMAIL
+          IDAEMAIL2=EXTERNALLOAN NAME:ALTEMAIL
+        END
+      END
+    END
+    ELSE IF TMPREC = "Application" THEN
+    DO
+      FOR EACH LOANAPP
+      DO
+        FOR EACH LOANAPP PERSON WITH LOANAPP PERSON:LOCATOR = TMPLOC
+        DO
+          IDACHR1=CAPITALIZE(LOANAPP PERSON:FIRST)
+          IDACHR2=CAPITALIZE(LOANAPP PERSON:MIDDLE)
+          IDACHR3=CAPITALIZE(LOANAPP PERSON:LAST)
+          IDACHR4=CAPITALIZE(LOANAPP PERSON:STREET)
+          IDACHR5=CAPITALIZE(LOANAPP PERSON:CITY)
+          IDACHR6=LOANAPP PERSON:STATE
+          IDACHR7=LOANAPP PERSON:ZIPCODE
+          IDACHR8=LOANAPP PERSON:SSN
+          IDACHR9=LOANAPP:ID
+          IDADATE1=LOANAPP PERSON:BIRTHDATE
+          IDACODE1=LOANAPP PERSON:DEPENDENTAGE:9
+          IDACODE2=1
+
+          [cant loop over identidtype]
+          IF LOANAPP PERSON:IDENTIDTYPE:3 = 2 THEN
+          DO
+            IDADLST=LOANAPP PERSON:IDENTIDDESCRIPTION:3
+            IDADLNUMBER=LOANAPP PERSON:IDENTIDNUMBER:3
+        END
+          IF LOANAPP PERSON:IDENTIDTYPE:2 = 2 THEN
+          DO
+            IDADLST=LOANAPP PERSON:IDENTIDDESCRIPTION:2
+            IDADLNUMBER=LOANAPP PERSON:IDENTIDNUMBER:2
+      END
+          IF LOANAPP PERSON:IDENTIDTYPE:1 = 2 THEN
+          DO
+            IDADLST=LOANAPP PERSON:IDENTIDDESCRIPTION:1
+            IDADLNUMBER=LOANAPP PERSON:IDENTIDNUMBER:1
+    END
+
+          IDAHOMEPHONE = LOANAPP PERSON:HOMEPHONE
+          IDAWORKPHONE = LOANAPP PERSON:WORKPHONE
+          IDAMOBILEPHONE = LOANAPP PERSON:MOBILEPHONE
+
+          IDAMMN=CAPITALIZE(LOANAPP PERSON:MOTHERSMAIDENNAME)
+          IDAEMAIL=LOANAPP PERSON:EMAIL
+          IDAEMAIL2=LOANAPP PERSON:ALTEMAIL
+        END
+      END
+    END
+    ELSE
+    DO
+      POPUPMESSAGE(0,"Invalid record selected")
+      RETCOMMAND = "close"
+    END
+  END
+
+END
+
+PROCEDURE VALIDATEVARS
+  CALL CLEARMIARRAY
+  ISVALID = TRUE
+  I = 0
+  IF IDACHR1="" THEN
+  DO
+    I = I + 1
+    MISSINGINFO(I) = "First Name"
+  END
+  IF IDACHR3="" THEN
+  DO
+    I = I + 1
+    MISSINGINFO(I) = "Last Name"
+  END
+  IF IDACHR4="" THEN
+  DO
+    I = I + 1
+    MISSINGINFO(I) = "Street"
+  END
+  IF IDACHR5="" THEN
+  DO
+    I = I + 1
+    MISSINGINFO(I) = "City"
+  END
+  IF IDACHR6="" THEN
+  DO
+    I = I + 1
+    MISSINGINFO(I) = "State"
+  END
+  IF IDACHR7="" THEN
+  DO
+    I = I + 1
+    MISSINGINFO(I) = "Zip Code"
+  END
+  IF IDADATE1='--/--/----' THEN
+  DO
+    I = I + 1
+    MISSINGINFO(I) = "Birthdate"
+  END
+  IF MISSINGINFO(1) <> "" THEN
+    ISVALID = FALSE
+  
+END
+
+PROCEDURE CLEARMIARRAY
+  FOR I = 1 TO 11
+  DO
+    MISSINGINFO(I) = ""
+  END
+END
+
+PROCEDURE GENERATEINFOHTML
+  HTMLVIEWOPEN(0)
+  HTMLVIEWLINE("<!DOCTYPE html>") 
+  HTMLVIEWLINE("<html>")
+  HTMLVIEWLINE("<head>")
+  [HTMLVIEWLINE("<meta http-equiv='Access-Control-Allow-Origin' content='*'>")]
+  HTMLVIEWLINE("<meta charset='iso-8859-1'>")
+  HTMLVIEWLINE("<meta http-equiv='X-UA-Compatible' content='IE=edge' />")
+  HTMLVIEWLINE("<title>Episys Identity Q&A Integration</title>")
+  [HTMLVIEWLINE("<link href='" + URL2 + "bootstrap.min.css' rel='stylesheet' />")]
+  HTMLVIEWLINE("<link href='" + URL2 + "css/bootstrap.min.css' rel='stylesheet' />")
+  HTMLVIEWLINE("<link href='" + URL2 + "css/angular-growl.min.css' rel='stylesheet' />")
+
+  HTMLVIEWLINE("<script src='" + URL2 + "js/jquery-2.1.4.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/bootstrap.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/angular.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/lodash.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/ui-bootstrap-tpls-1.3.2.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/angular-growl.min.js'></script>")
+  HTMLVIEWLINE("<script>var versionNum = '" + VERSIONNUMBER + "'</script>")
+  HTMLVIEWLINE("<script>var currYear = '" + CURRENTYEAR + "'</script>")
+  [Loading Javascript data]
+  HTMLVIEWLINE("<script>")
+  FILENAME="PS.IDQA.JS"
+  CALL GETRAWTEXT
+  HTMLVIEWLINE("</script>")
+
+  HTMLVIEWLINE("</head>")
+  [HTMLVIEWLINE("<body>")]
+  HTMLVIEWLINE("<body>")
+
+  PGDESC = "Missing Information"
+  CALL GETHEADER
+  
+  HTMLVIEWLINE("    <div class='container'>")
+  HTMLVIEWLINE("      <div class='row'>")
+  HTMLVIEWLINE("        <div class='col-md-12'>")
+  HTMLVIEWLINE("          <form name='idaForm' method='post' action='symitar://HTMLView~Action=Post' id='idaForm'>")
+  HTMLVIEWLINE("            <fieldset>")
+  HTMLVIEWLINE("              <div class='panel panel-default'>")
+  [HTMLVIEWLINE("              <div class='panel-heading'>The selected name is missing the following required information:</div>")]
+  HTMLVIEWLINE("                <div class='panel-body' id='pBody'>")
+  HTMLVIEWLINE("                  <strong>The selected name is missing the following required information:</strong>")
+  HTMLVIEWLINE("                  <ul>")
+
+  I=1
+  WHILE I < 11 AND MISSINGINFO(I) <> ""
+  DO
+    HTMLVIEWLINE("                    <li>" + MISSINGINFO(I) + "</li>")
+    I = I + 1
+  END
+
+  HTMLVIEWLINE("                ")
+  HTMLVIEWLINE("                  </ul>")
+  HTMLVIEWLINE("                  <strong>You may choose to select a different name or cancel this request.</strong>")
+  HTMLVIEWLINE("                </div>")
+  [HTMLVIEWLINE("              <div class='panel-footer'>You may choose to select a different name or cancel this request.</div>")]
+  
+  HTMLVIEWLINE("              </div>")
+  HTMLVIEWLINE("            </fieldset>")
+
+  HTMLVIEWLINE("            <input type='hidden' name='retCommand' id='retCommand' value='close'> ")
+  HTMLVIEWLINE("<input type='button' class='btn btn-default' value='Cancel' id='Cancel' onclick='postForm("+Q+"idaForm"+Q+", "+Q+"close"+Q+")'>")
+  HTMLVIEWLINE("<input type='button' class='btn btn-primary' value='Select Name' id='Select' ")
+  HTMLVIEWLINE(" onclick='postForm("+Q+"idaForm"+Q+", "+Q+"Select"+Q+")'>")
+  HTMLVIEWLINE("          </form>")
+  
+  HTMLVIEWLINE("        </div>")
+  HTMLVIEWLINE("      </div>")
+  HTMLVIEWLINE("    </div>")
+
+  CALL FOOTER
+
+
+  HTMLVIEWLINE("</body>")
+  HTMLVIEWLINE("</html>")
+  HTMLVIEWDISPLAY
+
+END
+
+PROCEDURE GENERATEHTML
+  HTMLVIEWOPEN(0)
+  HTMLVIEWLINE("<!DOCTYPE html>") 
+  HTMLVIEWLINE("<html ng-app='idqaApp'>")
+  HTMLVIEWLINE("<head>")
+  HTMLVIEWLINE("<meta charset='iso-8859-1'>")
+  HTMLVIEWLINE("<meta http-equiv='X-UA-Compatible' content='IE=edge' />")
+  HTMLVIEWLINE("<titleEpisys Identity Q&A Integration</title>")
+  HTMLVIEWLINE("<link href='" + URL2 + "css/bootstrap.min.css' rel='stylesheet' />")
+  HTMLVIEWLINE("<link href='" + URL2 + "css/angular-growl.min.css' rel='stylesheet' />")
+  HTMLVIEWLINE("<link href='" + URL2 + "css/font-awesome.min.css' rel='stylesheet' />")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/jquery-2.1.4.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/bootstrap.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/angular.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/lodash.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/ui-bootstrap-tpls-1.3.2.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/angular-growl.min.js'></script>")
+  HTMLVIEWLINE("<script>var versionNum = '" + VERSIONNUMBER + "'</script>")
+  HTMLVIEWLINE("<script>var currYear = '" + CURRENTYEAR + "'</script>")
+
+  HTMLVIEWLINE("</head>")
+  HTMLVIEWLINE("<body>")
+
+  FILENAME="PS.IDQA.HTML"
+  CALL GETRAWTEXT
+  HTMLVIEWLINE("<script>")
+  CALL GETDATA
+  FILENAME="PS.IDQA.JS"
+  CALL GETRAWTEXT
+  HTMLVIEWLINE("</script>")
+
+  HTMLVIEWLINE("</body>")
+  HTMLVIEWLINE("</html>")
+  HTMLVIEWDISPLAY
+END
+
+PROCEDURE GETDATA
+  HTMLVIEWLINE("var url = '" + URL + "';")
+  HTMLVIEWLINE("var inputData = {};")
+
+  IF ISSTAGING = 0 THEN
+  do
+    ENDPOINT = PRODUCTIONURL
+    ENDPOINT2 = PWPRODUCTIONURL
+  end
+  ELSE
+  do
+    ENDPOINT = STAGINGURL
+    ENDPOINT2 = PWSTAGINGURL
+  end
+  HTMLVIEWLINE("inputData.endpoint = '" + ENDPOINT + "';")
+  HTMLVIEWLINE("inputData.endpoint2 = '" + ENDPOINT2 + "';")
+
+
+  HTMLVIEWLINE("inputData.vendorId = '" + VENDORID + "';")
+  HTMLVIEWLINE("inputData.operation = 'getQuestions';")
+  HTMLVIEWLINE("inputData.staging = " + bool(isStaging) + ";")
+  HTMLVIEWLINE("inputData.vendorInfo = {};")
+
+  HTMLVIEWLINE("inputData.vendorInfo.username = '" + USERNAME + "';")
+
+  HTMLVIEWLINE("inputData.vendorInfo.customerId = '" + CUSTOMERID + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.productCode = '" + PRODUCTCODE + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.productVersion = '" + PRODUCTVERSION + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.misc1 = '" + misc1 + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.misc2 = '" + misc2 + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.misc3 = '" + misc3 + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.misc4 = '" + misc4 + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.misc5 = '" + misc5 + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.misc6 = '" + misc6 + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.misc7 = '" + misc7 + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.misc8 = '" + misc8 + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.misc9 = '" + misc9 + "';")
+  HTMLVIEWLINE("inputData.vendorInfo.autoChangePw = " + bool(ISAUTOCHANGE) + ";")
+  HTMLVIEWLINE("inputData.vendorInfo.autoChangeThreshold = '" + PWTHRESHOLD + "';")
+  
+  [HTMLVIEWLINE("inputData.session = {};")]
+  [HTMLVIEWLINE("inputData.vendorInfo.password = '8@jR2x#Tebqdft';")]
+  HTMLVIEWLINE("inputData.name = {};")
+  tmpChr = IDACHR1
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.firstName = '" + tmpChr2 + "';")
+  tmpChr = IDACHR2
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.middleName = '" + tmpChr2 + "';")
+  tmpChr = IDACHR3
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.lastName = '" + tmpChr2 + "';")
+  HTMLVIEWLINE("inputData.name.address = {};")
+  tmpChr = IDACHR4
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.address.address = '" + tmpChr2 + "';")
+  tmpChr = IDACHR5
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.address.city = '" + tmpChr2 + "';")
+  tmpChr = IDACHR6
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.address.state = '" + tmpChr2 + "';")
+  tmpChr = IDACHR7
+  IF VENDORID="FIS" THEN
+    CALL REMOVEDASH
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.address.zip = '" + tmpChr2 + "';")
+  tmpChr = IDACHR8
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.ssn = '" + tmpChr2 + "';")
+  HTMLVIEWLINE("inputData.name.dob = '" + format("99999999",IDADATE1) + "';")
+
+  HTMLVIEWLINE("inputData.name.driverLicense = {};")
+  tmpChr = IDADLST
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.driverLicense.state = '" + tmpChr2 + "';")
+  tmpChr = IDADLNUMBER
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.driverLicense.number = '" + tmpChr2 + "';")
+
+  HTMLVIEWLINE("inputData.name.phones = [];")
+  tmpChr = IDAHOMEPHONE
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.phones.push({ type: 'home', number: '" + tmpChr2 + "'});")
+  tmpChr = IDAWORKPHONE
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.phones.push({ type: 'work', number: '" + tmpChr2 + "'});")
+  tmpChr = IDAMOBILEPHONE
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.phones.push({ type: 'mobile', number: '" + tmpChr2 + "'});")
+  tmpChr = IDAMMN
+  CALL ESCAPECHARS
+  HTMLVIEWLINE("inputData.name.mothersMaidenName = '" + tmpChr2 + "';")
+
+  HTMLVIEWLINE("inputData.name.emails = [];")
+
+  IF IDAEMAIL<>"" THEN
+  DO
+    tmpChr = IDAEMAIL
+    CALL ESCAPECHARS
+    HTMLVIEWLINE("inputData.name.emails.push('" + tmpChr2 + "');")
+  END
+  IF IDAEMAIL2<>"" THEN
+  DO
+    tmpChr = IDAEMAIL2
+    CALL ESCAPECHARS
+    HTMLVIEWLINE("inputData.name.emails.push('" + tmpChr2 + "');")
+  END
+
+
+
+  
+
+
+END
+
+
+PROCEDURE DISPLAYDECISION
+  HTMLVIEWOPEN(0)
+  HTMLVIEWLINE("<!DOCTYPE html>") 
+  HTMLVIEWLINE("<html>")
+  HTMLVIEWLINE("<head>")
+  [HTMLVIEWLINE("<meta http-equiv='Access-Control-Allow-Origin' content='*'>")]
+  HTMLVIEWLINE("<meta charset='iso-8859-1'>")
+  HTMLVIEWLINE("<meta http-equiv='X-UA-Compatible' content='IE=edge' />")
+  HTMLVIEWLINE("<title>Episys Identity Q&A Integration</title>")
+  [HTMLVIEWLINE("<link href='" + URL2 + "bootstrap.min.css' rel='stylesheet' />")]
+  HTMLVIEWLINE("<link href='" + URL2 + "css/bootstrap.min.css' rel='stylesheet' />")
+  HTMLVIEWLINE("<link href='" + URL2 + "css/angular-growl.min.css' rel='stylesheet' />")
+
+  HTMLVIEWLINE("<script src='" + URL2 + "js/jquery-2.1.4.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/bootstrap.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/angular.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/lodash.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/ui-bootstrap-tpls-1.3.2.min.js'></script>")
+  HTMLVIEWLINE("<script src='" + URL2 + "js/angular-growl.min.js'></script>")
+  HTMLVIEWLINE("<script>var versionNum = '" + VERSIONNUMBER + "'</script>")
+  HTMLVIEWLINE("<script>var currYear = '" + CURRENTYEAR + "'</script>")
+  
+  [Loading Javascript data]
+  HTMLVIEWLINE("<script>")
+  FILENAME="PS.IDQA.JS"
+  CALL GETRAWTEXT
+  HTMLVIEWLINE("</script>")
+
+  HTMLVIEWLINE("</head>")
+  HTMLVIEWLINE("<body>")
+
+  PGDESC = "Decision"
+  CALL GETHEADER
+  
+  HTMLVIEWLINE("    <div class='container' id='dContainer'>")
+  HTMLVIEWLINE("      <div class='row'>")
+  HTMLVIEWLINE("        <div class='col-md-12'>")
+  HTMLVIEWLINE("          <div class='panel panel-default'>")
+  HTMLVIEWLINE("            <div class='panel-body' id='pBody'>")
+  HTMLVIEWLINE("              <table class='table'>")
+  HTMLVIEWLINE("                <thead>")
+  HTMLVIEWLINE("                  <tr><td class='header' colspan='4'></td></tr>")
+  HTMLVIEWLINE("                </thead>")
+  HTMLVIEWLINE("                <tbody>")
+  HTMLVIEWLINE("                  <tr>")
+  HTMLVIEWLINE("                    <td>Report Date</td>")
+  HTMLVIEWLINE("                    <td>" + FORMAT("99/99/9999",SYSTEMDATE) + "</td>")
+  HTMLVIEWLINE("                  </tr>")
+  HTMLVIEWLINE("                  <tr>")
+  HTMLVIEWLINE("                    <td>Name</td>")
+  tmpChr3 = ""
+  tmpChr = IDACHR1
+  CALL ESCAPECHARS
+  tmpChr3 = tmpChr2
+  tmpChr = IDACHR2
+  CALL ESCAPECHARS
+  tmpChr3 = tmpChr3 + " " + tmpChr2
+  tmpChr = IDACHR3
+  CALL ESCAPECHARS
+  tmpChr3 = tmpChr3 + " " + tmpChr2
+  HTMLVIEWLINE("                    <td id='dName'>" + tmpChr3 + "</td>")
+  HTMLVIEWLINE("                  </tr>")
+  HTMLVIEWLINE("                  <tr>")
+  HTMLVIEWLINE("                    <td>SSN</td>")
+  HTMLVIEWLINE("                    <td>" + IDACHR8 + "</td>")
+  HTMLVIEWLINE("                  </tr>")
+  HTMLVIEWLINE("                  <tr>")
+  HTMLVIEWLINE("                    <td>Number of Questions Asked</td>")
+  HTMLVIEWLINE("                    <td>" + FORMAT("9",BASE) + "</td>")
+  HTMLVIEWLINE("                  </tr>")
+  HTMLVIEWLINE("                  <tr>")
+  HTMLVIEWLINE("                    <td>Number of Correct Answers</td>")
+  HTMLVIEWLINE("                    <td>" + FORMAT("9",SCORE) + "</td>")
+  HTMLVIEWLINE("                  </tr>")
+  HTMLVIEWLINE("                  <tr>")
+  HTMLVIEWLINE("                    <td>Decision</td>")
+  HTMLVIEWLINE("                    <td>" + DECISION + "</td>")
+  HTMLVIEWLINE("                  </tr>")
+
+  IF DECISIONREASON<> "" THEN
+  DO
+    HTMLVIEWLINE("                  <tr>")
+    HTMLVIEWLINE("                    <td>Decision Reason</td>")
+    HTMLVIEWLINE("                    <td>" + DECISIONREASON + "</td>")
+    HTMLVIEWLINE("                  </tr>")
+  END
+  
+  HTMLVIEWLINE("                </tbody>")
+  HTMLVIEWLINE("              </table>")
+  HTMLVIEWLINE("              <script>")
+  HTMLVIEWLINE("  document.getElementById('dName').innerText = trimSpaces(document.getElementById('dName').innerText);")
+  HTMLVIEWLINE("              </script>")
+
+  HTMLVIEWLINE("            </div>")
+  HTMLVIEWLINE("          </div>")
+
+  HTMLVIEWLINE("          <form name='form2' method='post' action='symitar://HTMLView~Action=Post' id='form2'>")
+  HTMLVIEWLINE("            <input type='hidden' name='retCommand' id='retCommand' value='close'> ")
+
+  HTMLVIEWLINE("<input type='button' class='btn btn-primary' value='Exit' id='Exit' onclick='postForm("+Q+"form2"+Q+","+Q+"close"+Q+")'>")
+
+  HTMLVIEWLINE("          </form>")
+  HTMLVIEWLINE("        </div>")
+  HTMLVIEWLINE("      </div>")
+  HTMLVIEWLINE("    </div>")
+  CALL FOOTER
+
+
+  HTMLVIEWLINE("</body>")
+  HTMLVIEWLINE("</html>")
+  HTMLVIEWDISPLAY
+END
+
+
+PROCEDURE READSCREEN
+  IF FIELDNAME="base" THEN
+  DO
+    BASE = VALUE(FIELDVALUE)
+  END
+  ELSE IF FIELDNAME="decision" THEN
+  DO
+    DECISION = FIELDVALUE
+  END
+  ELSE IF FIELDNAME="score" THEN
+  DO
+    SCORE = VALUE(FIELDVALUE)  
+  END
+  ELSE IF FIELDNAME="reason" THEN
+  DO
+    DECISIONREASON = FIELDVALUE
+  END
+  ELSE IF FIELDNAME="reasoncode" THEN
+  DO
+    DECISIONREASONCODE = FIELDVALUE
+  END
+END [Procedure READSCREEN]
+
+PROCEDURE CREATEDECTRACKING
+[todo:CREATEDECTRACKING]
+  IF IDACODE2 = 0 THEN 
+  DO
+    FMPERFORM CREATE TRACKING -1 (0,ACCOUNTRACKING,TMPLOC,FMPERROR)
+    DO
+    END
+    IF FMPERROR<>"" THEN
+      CALL REPORTERROR
+    ELSE
+      TRLOC=TMPLOC
+    
+    IF TRLOC<>0 THEN
+    DO
+      FMPERFORM REVISE TRACKING LOC TRLOC (0,ACCOUNTRACKING,FMPERROR)
+      DO
+        SET USERCHAR1 TO IDACHR1 + " " + IDACHR2 + " " + IDACHR3
+        SET USERCHAR2 TO IDACHR8
+        SET USERCHAR3 TO DECISION
+        SET USERCHAR4 TO DECISIONREASONCODE
+        SET USERCODE1 TO IDACODE1
+        SET USERNUMBER1 TO BASE
+        SET USERNUMBER2 TO SCORE
+        SET EXPIREDATE TO DATEOFFSET(SYSTEMDATE, EXPIREACCTTRMONTHS, 0)
+ [todo:]SET USERCHAR5 TO SELECTEDREASONCHAR
+      END
+      IF FMPERROR<>"" THEN
+        CALL REPORTERROR
+      IDANUMBER1 = TRLOC
+    END
+  END
+  ELSE [ela application]
+  DO
+    FMPERFORM CREATE LOANAPP IDACHR9 TRACKING AFTERLAST (0,APPTRACKING,TMPLOC,FMPERROR)
+    DO
+    END
+    IF FMPERROR<>"" THEN
+      CALL REPORTERROR
+    ELSE
+      TRLOC=TMPLOC
+    
+    IF TRLOC<>0 THEN
+    DO
+      FMPERFORM REVISE LOANAPP IDACHR9 TRACKING LOC TRLOC (0,APPTRACKING,FMPERROR) [REVIEW ACCOUNTTRACKING]
+      DO
+        SET USERCHAR1 TO IDACHR1 + " " + IDACHR2 + " " + IDACHR3
+        SET USERCHAR2 TO IDACHR8
+        SET USERCHAR3 TO DECISION
+        SET USERCHAR4 TO DECISIONREASONCODE
+        SET USERCODE1 TO IDACODE1
+        SET USERNUMBER1 TO BASE
+        SET USERNUMBER2 TO SCORE
+ [todo:]SET USERCHAR5 TO SELECTEDREASONCHAR
+      END
+      IF FMPERROR<>"" THEN
+        CALL REPORTERROR
+      IDANUMBER1 = TRLOC    
+    END
+  END
+END
+
+PROCEDURE REPORTERROR
+  POPUPMESSAGE(2,FMPERROR)
+END
+
+PROCEDURE GETCUSTID
+  FILEOPEN("REPGEN",CUSTIDFILENAME,"READ",FILENUMBER,FILEERROR)
+  IF FILEERROR<>"" THEN
+  DO
+    POPUPMESSAGE(2,"There was an error opening the IDQA branch ID file: "+FILEERROR)
+    FILECLOSE(FILENUMBER,FILEERROR)
+    TERMINATE
+  END
+  ELSE
+  DO
+    FILEREADLINE(FILENUMBER,FILETEXT,FILEERROR)
+    WHILE (FILEERROR="")
+    DO
+      IF SEGMENT(FILETEXT,1,1)<>"#" THEN
+      DO
+        TILDELOC  = CHARACTERSEARCH(FILETEXT,"~")
+        CFGLENGTH = LENGTH(FILETEXT)
+        [-- DETERMINE WHAT DATA IS BEING ACQUIRED --]
+
+        LFTHELIST = SEGMENT(FILETEXT,TILDELOC+1,CFGLENGTH)
+        LFTHEVALUE = GETDATANUMBER(GETCONSOLEBRANCH,SYSCONSOLENUM)
+        CALL LISTFIND
+        IF LFFOUND = TRUE THEN
+        DO
+          CUSTOMERID = SEGMENT(FILETEXT,1,TILDELOC-1)
+        END
+
+      END
+      FILEREADLINE(FILENUMBER,FILETEXT,FILEERROR)
+      
+    END [While]
+    FILECLOSE(FILENUMBER,FILEERROR)
+    IF FILEERROR<>"" THEN
+    DO
+      POPUPMESSAGE(2,"There was an error closing the IDA branch ID file: "+FILEERROR)
+      TERMINATE
+    END [If FileError on Close]
+  END [If FileError on Open]
+END
+
+[Removes dashes from tmpchr]
+PROCEDURE REMOVEDASH
+  FOR I=1 TO LENGTH(TMPCHR)
+    DO
+      IF SEGMENT(TMPCHR,I,I)="-" THEN
+      DO
+        IF I=1 THEN
+          TMPCHR=SEGMENT(TMPCHR,2,LENGTH(TMPCHR))
+	    ELSE
+		  TMPCHR=SEGMENT(TMPCHR,1,I-1)+SEGMENT(TMPCHR,I+1,LENGTH(TMPCHR))
+      END
+  END
+END
+
+PROCEDURE GETQAREASON
+[todo:GETQAREASON]
+ FILEOPEN("HELP","PS.IDQA.REASON.OPTIONS","READ",FNUM,FMERROR)
+ WHILE FMERROR=""
+  DO
+   FILEREADLINE(FNUM,FLINE,FMERROR)
+   IF SEGMENT(FLINE,1,1)<>"#" AND SEGMENT(FLINE,1,1)<>""  THEN
+    DO 
+     R=R+1   
+     REASONCODE(R) = VALUE(SEGMENT(FLINE,1,2))
+     REASONCHAR(R) = SEGMENT(FLINE,6,LENGTH(FLINE))  
+   END
+  END
+ FILECLOSE(FNUM,FMERROR) 
+ DIALOGSTART("Q&A Reason",100%,1)
+ DIALOGPROMPTCOMBOSTART("Reason",0)
+ FOR I=1 TO R
+  DO
+   IF REASONCHAR(I)<>"" THEN
+    DO     
+     DIALOGPROMPTCOMBOOPTION(I,FORMAT("99",REASONCODE(I))+" "+REASONCHAR(I))
+    END
+  END
+ DIALOGPROMPTCOMBOEND
+ DIALOGDISPLAY
+ IDSUB=ENTERCODE("Reason",R,0)
+ DIALOGCLOSE
+ SELECTEDREASONCODE = REASONCODE(IDSUB)
+ SELECTEDREASONCHAR = REASONCHAR(IDSUB)  
+ IF SELECTEDREASONCODE = 99 THEN
+  DO
+   DIALOGSTART("Q&A Reason",100%,1)
+   DIALOGPROMPTCHAR("Other Reason",40,"")
+   DIALOGDISPLAY
+   OTHERREASON=ENTERCHARACTER("Other Reason",40,"")
+   DIALOGCLOSE   
+   SELECTEDREASONCHAR = SELECTEDREASONCHAR + ":" + OTHERREASON
+  END 
+END
+
+#INCLUDE "PS.IDQA.PRO"

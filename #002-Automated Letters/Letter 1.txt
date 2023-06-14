@@ -1,0 +1,70 @@
+ COL=005 "We want to thank you for financing your auto loan with Austin Telco Federal Credit Union!  We greatly appreciate your"
+ NEWLINE
+ COL=005 "membership and look forward to serving your financial needs for years to come."
+ NEWLINE
+ NEWLINE
+ COL=005 "We noticed that when you purchased your <2020 Ferrari> from <dealer name>, you did not include a GAP insurance product to help"
+ NEWLINE
+ COL=005 "protect you financially in the case of a total loss of your vehicle. Austin Telco offers low-cost GAP insurance for only $395."
+ NEWLINE
+ COL=005 "How does GAP Advantage from Austin Telco work?  The following is an example of GAP Advantage in action:"
+ NEWLINE
+ NEWLINE
+ COL=028 "Your Loan Balance:							$15,000"
+ NEWLINE
+ COL=028 "Your Insurance Company Settlement:			$10,000"
+ NEWLINE
+ COL=028 "Loan Balance Remaining without Protection:	$ 5,000"
+ NEWLINE
+ COL=028 "Loan Balance Remaining with GAP Advantage:	$   -0-"
+ NEWLINE
+ COL=028 "*GAP Advantage is subject to limitations and exclusions, please consult your financing representative"
+ NEWLINE
+ COL=028 "to determine if your vehicle is eligible for GAP advantage."
+ NEWLINE
+ NEWLINE
+ COL=005 "If you have any questions or would like to receive a quote for coverage of your vehicle, please contact Michael Olivares at"
+ NEWLINE
+ COL=005 "512-302-5555, ext 7324."
+ NEWLINE	
+ NEWLINE
+ COL=005 "We will keep you informed of any new services or products we offer or any information that is important for you to know about"
+ NEWLINE
+ COL=005 "your membership through our monthly eNewsletter. We also encourage you to visit our web site at www.atfcu.org for detailed"
+ NEWLINE
+ COL=005 "information about all our products and services, membership news, Internet specials, and as an educational resource."
+ NEWLINE	
+ NEWLINE
+ COL=005 "We offer a wide array of loan and savings products in addition to our Internet convenience services, such as online Bill Pay"
+ NEWLINE
+ COL=005 "(up to 15 FREE per month), 300+ FEE FREE ATM’s, Online Statements, and 24/7 access to your account information through"
+ NEWLINE
+ COL=005 "Online Banking and our Mobile App.   We are currently offering extremely competitive auto, mortgage, and home equity loan rates"
+ NEWLINE
+ COL=005 "and outstanding certificate of deposit rates."
+ NEWLINE
+ NEWLINE
+ COL=005 "We want your feedback. We want to know if we can serve you better or offer you a service that we do not currently have. To make"
+ NEWLINE
+ COL=005 "it easy on you, we have an email address specifically for members to give us feedback; memberfeedback@atfcu.org. You may also"
+ NEWLINE
+ COL=005 "contact us by phone or in person."
+ NEWLINE	
+ NEWLINE
+ COL=005 "Thank you for choosing Austin Telco Federal Credit Union."
+ NEWLINE	
+ NEWLINE
+ COL=005 "Sincerely,"
+ NEWLINE
+ NEWLINE
+ NEWLINE
+ NEWLINE
+ COL=005 "Pamela Williams Cotton"
+ NEWLINE
+ COL=005 "Vice President of Member Services"
+ NEWLINE
+ COL=005 "512-302-5555, ext. 7000"
+ NEWLINE
+ COL=005 "memberfeedback@atfcu.org"
+
+
