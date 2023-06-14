@@ -1,0 +1,834 @@
+[GH.DELINQUENT.REPORT.SUMMARY - Sumarizes the Delinquent Loan Report - Requested by: Tony]
+[10/24/08 GH Added summaries for Audit and installed new information live per Tony]
+[ 02/03/12 BDW  Added new loan types for RV/Boats & New Vehicles.]
+[06/05/17 GH Changed range breakout per Tony.  Added BK per Rebecca S.
+             Channges details to break out by type and days Delinquent.
+             Moved delinquent summaries below each detail section]
+[06/07/17 GH Modified program to pick up the last Delinquent Loans report unless a sequence number is entered.
+             This is so the new nightly job can use the last report generated just before this is run as input]
+[11/04/21 JJ Modified program to get Days Delinquent from positions 26-29 instead of 27-29.]
+
+
+TARGET=ACCOUNT
+
+DEFINE
+ #INCLUDE "RD.GETDATA.DEF"
+ FNUMBER=NUMBER
+ FLINE=CHARACTER
+ FERROR=CHARACTER
+ SEQNUM=CHARACTER(6)
+ ACCTNO=CHARACTER(10)
+ LID=CHARACTER(2)
+ T=NUMBER
+ L=NUMBER
+ TAMT=MONEY
+ SBAL=MONEY
+ SCNT=NUMBER
+ SAMT=MONEY
+ TBAL=MONEY
+ TCNT=NUMBER
+ TBALS=MONEY        ARRAY(11,9999)
+ TCNTS=NUMBER       ARRAY(11,9999)
+ GBALS=MONEY        ARRAY(11,9999)
+ GCNTS=NUMBER       ARRAY(11,9999)
+ BAMT=MONEY
+ G=NUMBER
+ H=NUMBER
+ I=NUMBER
+ OLDNUMB=NUMBER
+ RECAP=CHARACTER(1)
+ TPMT=MONEY
+ SDQP=MONEY
+ TDQP=MONEY
+ LCNT=NUMBER        ARRAY(3000)
+ LBAL=MONEY         ARRAY(3000,2)
+ LC=NUMBER
+ CCNT=NUMBER        ARRAY(3000)
+ CBAL=MONEY         ARRAY(3000,2)
+ CC=NUMBER
+ RCNT=NUMBER        ARRAY(10)
+ RBAL=MONEY         ARRAY(10,2)
+ RC=NUMBER
+ T1=NUMBER
+ T2=MONEY
+ T3=MONEY
+ COLLDESC=CHARACTER    ARRAY(1000)   [Array of Collateral Code Descriptions]
+ RSKDESC=CHARACTER     ARRAY(10)     [Loan Risk Index Descriptions]
+ LOANDESC=CHARACTER    ARRAY(100)    [Default Loan Type Descriptions]
+ LIENPOS=CHARACTER(1)                [Lien Position]
+ TMPDESC=CHARACTER
+ RCHAR=CHARACTER(20)   ARRAY(8000,5)
+ RNUMB=NUMBER          ARRAY(8000,7)
+ RBALS=MONEY           ARRAY(8000,3)
+ RDATE=DATE            ARRAY(8000)
+ RB=NUMBER
+ RI=NUMBER
+ RJ=NUMBER
+ J=NUMBER
+ K=NUMBER
+ B=NUMBER
+ DQDAYS=NUMBER
+ LN=NUMBER
+ HN=NUMBER
+ HTOT=NUMBER
+ SECHEADER=CHARACTER
+ FLERROR=CHARACTER
+ RLINE=CHARACTER
+ FIRST=CHARACTER(1)
+ SNAME=CHARACTER
+END
+
+SETUP
+ FIRST="Y"
+ SEQNUM=""
+ SEQNUM=CHARACTERREAD("Report# OR Blank For Last")
+ IF SEQNUM="" THEN 
+  DO
+   FILELISTOPEN("REPORT","Delinquent Loans",FLERROR)
+    WHILE FLERROR=""
+     DO
+      FILELISTREAD(RLINE,FLERROR)
+      IF RLINE<>"" THEN SEQNUM=SEGMENT(RLINE,110,115)
+      PRINT RLINE
+      NEWLINE
+     END
+   FILELISTCLOSE(FLERROR)
+ END
+ OLDNUMB=11
+ FILEOPEN("HELP","01315","READ",FNUMBER,FERROR)       [Reads Collateral HELP file]
+ WHILE FERROR=""
+  DO
+   FILEREADLINE(FNUMBER,FLINE,FERROR)
+   IF LENGTH(FLINE)>0 AND SEGMENT(FLINE,4,6)<>"COL" AND SEGMENT(FLINE,4,6)<>"~~~" AND  
+                          SEGMENT(FLINE,1,3)<>"vvv" AND SEGMENT(FLINE,1,3)<>"^^^" THEN
+    DO
+     TMPDESC=SEGMENT(FLINE,9,LENGTH(FLINE))
+     IF LENGTH(TMPDESC)>42 THEN TMPDESC=SEGMENT(TMPDESC,1,42)
+     COLLDESC(VALUE(SEGMENT(FLINE,3,5)))=TMPDESC
+    END
+  END
+ FILECLOSE(FNUMBER,FERROR)
+ RSKDESC(0)="Unknow Score for Risk Assessment"
+ RSKDESC(1)=">=730 AND <=998"
+ RSKDESC(2)=">=680 AND <=729"
+ RSKDESC(3)=">=640 AND <=679"
+ RSKDESC(4)=">=600 AND<=639"
+ RSKDESC(5)=">=550 AND <=599"
+ RSKDESC(6)=">0 AND <=549"
+ RSKDESC(7)="Unknown"
+ FOR I=0 TO 99                                       [READ IN DEFAULT LOAN DESCRIPTIONS]
+  DO
+   LOANDESC(I)=GETDATACHARACTER(GETDEFAULTLOAN,I,077)
+  END
+END
+ 
+SELECT
+ NONE
+END
+
+PRINT TITLE="Delinquent Report Summary"
+
+ HEADERS
+  COL=1 "Account"
+  COL=12 "Name"
+  COL=29 "ID"
+  COL=32 "Type"
+  COL=38 "Description"
+  COL=63 "DQ"
+  COL=67 "DQ Amount"
+  COL=80 "Payment"
+  COL=89 "Due Date"
+  COL=105 "Balance"
+  COL=113 "Risk"
+  COL=119 "Aprv"
+  COL=124 "Coll"
+  COL=130 "BK"
+  NEWLINE
+  COL=1 REPEATCHR("-",132)
+  NEWLINE
+ END
+
+ IF SEQNUM<>"" THEN
+  DO
+   FILEOPEN("REPORT",SEQNUM,"READ",FNUMBER,FERROR)
+   IF FERROR<>"" THEN 
+    DO
+     PRINT "ERROR OPENING SEQNUM# "+SEQNUM+"  "+FERROR
+     NEWLINE
+     TERMINATE
+    END
+   WHILE FERROR=""
+    DO
+     IF SEGMENT(FLINE,1,5)="Recap" THEN RECAP="Y"    [Do not include data from here out]
+     IF RECAP="Y" OR SEGMENT(FLINE,3,3)<>"L" THEN 
+      DO
+       FILEREADLINE(FNUMBER,FLINE,FERROR)
+       IF SEGMENT(FLINE,1,5)="Recap" THEN RECAP="Y"
+      END
+     IF RECAP<>"Y" THEN
+      DO
+       IF CHARACTERSEARCH(FLINE,"Days DQ")>0 THEN     [DQ days range - Top of page and Totals]
+        DO
+         DQDAYS=VALUE(SEGMENT(FLINE,1,3))
+        END
+       IF CHARACTERSEARCH(FLINE,"SSN/TIN:")>0 THEN
+        DO
+         ACCTNO=SEGMENT(FLINE,1,10)
+         SNAME=SEGMENT(FLINE,12,27) 
+         FILEREADLINE(FNUMBER,FLINE,FERROR)
+        END     
+       IF SEGMENT(FLINE,3,3)="L" THEN
+        DO
+         LID=SEGMENT(FLINE,7,8)                                        [Loan ID]
+         RB=RB+1
+         RCHAR(RB,1)=ACCTNO                                            [Account Number]
+         RCHAR(RB,2)=SNAME                                             [Name]
+         RNUMB(RB,1)=DQDAYS                                            [Days Delinquent Range]
+         RCHAR(RB,3)=LID
+         RNUMB(RB,2)=VALUE(SEGMENT(FLINE,48,51))                       [Loan Type]
+         RCHAR(RB,4)=SEGMENT(FLINE,12,42)                              [Loan Description] 
+         L=VALUE(SEGMENT(FLINE,48,51))                                         
+         
+         IF L>=30 AND L<=38                THEN G=1                    [HE/HI 1-All 2-1st, 3-2nd]
+         ELSE IF L>=40 AND L<=49           THEN G=4                    [VISA]
+         ELSE IF L=11 OR (L>=20 AND L<=27) THEN G=12                   [RV/BOAT]
+         ELSE IF L>=70 AND L<80            THEN G=5                    [BUSINESS]
+         ELSE IF L=5 OR L=8                THEN G=6                    [LOC]
+         ELSE IF L=1 OR (L>=50 AND L<=55)  THEN G=7                    [USED VEHICLE]
+         ELSE IF L=2 OR (L>=60 AND L<=65)  THEN G=8                    [NEW VEHICLE]
+         [todo:Loan Types G=X]
+         ELSE IF L=81 OR L=83              THEN G=9                    [Indirect New Vehicle Secured Loans]
+         ELSE IF L=82 OR L=84              THEN G=10                   [Indirect Used Vehicle Secured Loans]        
+         ELSE G=[9]11                                                  [ALL OTHER]
+         
+         BAMT=MONEY(VALUE(SEGMENT(FLINE,57,72)))                       [Loan Balance]
+         FILEREADLINE(FNUMBER,FLINE,FERROR)
+         T=0
+         T=VALUE(SEGMENT(FLINE,26,29))                                 [Days Delinquent]
+         RNUMB(RB,3)=T
+         IF T>HTOT THEN HTOT=T
+         TAMT=MONEY(VALUE(SEGMENT(FLINE,41,50)))                       [Delinquent Amount]
+         TPMT=MONEY(VALUE(SEGMENT(FLINE,83,94)))                       [Loan Payment]
+         RBALS(RB,1)=TAMT
+         RBALS(RB,2)=TPMT
+         RDATE(RB)=DATEVALUE(SEGMENT(FLINE,10,17))                     [Loan Due Date]
+         RBALS(RB,3)=BAMT
+         LC=0
+         CC=0
+         RC=0
+         LIENPOS=""
+         FOR ACCOUNT ACCTNO
+          DO
+           FOR EACH LOAN WITH LOAN:ID=LID
+            DO
+             IF ANYWARNING(LOAN,8) OR ANYWARNING(LOAN,54) THEN RCHAR(RB,5)="BK"
+             RNUMB(RB,4)=VALUE(LOAN:USERCHAR1)                         [Loan Risk Value from Account/Loan]
+             RNUMB(RB,5)=LOAN:APPROVALCODE                             [Loan Officer]   
+             RNUMB(RB,6)=LOAN:COLLATERALCODE                           [Collateral Code]
+             IF G=12 THEN
+              DO
+               IF LOAN:COLLATERALCODE=42 OR LOAN:COLLATERALCODE=44 OR  
+                  LOAN:COLLATERALCODE=46 OR LOAN:COLLATERALCODE=48 OR 
+                  LOAN:COLLATERALCODE=66 OR LOAN:COLLATERALCODE=95 OR 
+                  LOAN:COLLATERALCODE=309 OR LOAN:COLLATERALCODE=318 OR
+                  LOAN:COLLATERALCODE=327 OR LOAN:COLLATERALCODE=336 THEN G=8 [NEW VEHICLE]
+               ELSE G=7                                                       [USED VEHICLE]
+              END
+             LC=LOAN:APPROVALCODE
+             CC=LOAN:COLLATERALCODE
+             RC=VALUE(LOAN:USERCHAR1)
+             IF RC>6 THEN RC=7                                         [UNKNOWN RISK LEVEL]
+             IF LOAN:TYPE>=30 AND LOAN:TYPE<=38 THEN
+              DO            
+               IF LOAN:TYPE>=75 THEN LIENPOS="F"
+               ELSE
+                DO
+                 FOR EACH LOAN TRACKING WITH (LOAN TRACKING:EXPIREDATE='--/--/--' AND
+                         (LOAN TRACKING:TYPE=34 OR LOAN TRACKING:TYPE=35))
+                  DO
+                   IF LOAN TRACKING:TYPE=35 THEN
+                    DO
+                     IF LOAN TRACKING:USERCODE1=1 THEN LIENPOS="F"
+                     ELSE IF LOAN TRACKING:USERCODE1=2 THEN LIENPOS="S"
+                    END
+                   IF LOAN TRACKING:TYPE=34 AND LIENPOS="" THEN
+                    DO
+                     IF LOAN TRACKING:USERNUMBER1=1 THEN LIENPOS="F"
+                     ELSE IF LOAN TRACKING:USERNUMBER1=2 THEN LIENPOS="S"
+                    END
+                  END
+                END
+              END
+            END
+          END
+         IF LIENPOS="F" THEN RNUMB(RB,7)=2
+         ELSE IF LIENPOS="S" THEN RNUMB(RB,7)=3
+         ELSE RNUMB(RB,7)=G
+         FILEREADLINE(FNUMBER,FLINE,FERROR)   
+         FILEREADLINE(FNUMBER,FLINE,FERROR)                                                                                            
+         IF SEGMENT(FLINE,1,5)<>"-----" AND SEGMENT(FLINE,3,3)<>"L" THEN
+          DO
+           IF SEGMENT(FLINE,1,12)="AUSTIN TELCO" THEN                 [Loan information split between pages]
+            DO
+             FILEREADLINE(FNUMBER,FLINE,FERROR)
+             FILEREADLINE(FNUMBER,FLINE,FERROR)
+             FILEREADLINE(FNUMBER,FLINE,FERROR)
+             FILEREADLINE(FNUMBER,FLINE,FERROR)
+            END
+          END
+         IF T>=11 THEN
+          DO
+           IF T<=29 THEN T=1                                   [Subtotals per section]
+           ELSE IF T<=59 THEN T=2
+           ELSE IF T<=89 THEN T=3
+           ELSE IF T<=119 THEN T=4
+           ELSE IF T<=179 THEN T=5
+           ELSE IF T<=359 THEN T=6
+           ELSE T=7
+           TBALS(T,L)=TBALS(T,L)+TAMT
+           TCNTS(T,L)=TCNTS(T,L)+1
+           LCNT(LC)=LCNT(LC)+ 1        [Totals by Officer]
+           LBAL(LC,1)=LBAL(LC,1)+BAMT  [Total Balance]
+           LBAL(LC,2)=LBAL(LC,2)+TAMT  [Total Delinquent]
+           CCNT(CC)=CCNT(CC)+1         [Totals by Collateral Code]
+           CBAL(CC,1)=CBAL(CC,1)+BAMT
+           CBAL(CC,2)=CBAL(CC,2)+TAMT
+           RCNT(RC)=RCNT(RC)+1         [Totals by Loan Risk Value]
+           RBAL(RC,1)=RBAL(RC,1)+BAMT
+           RBAL(RC,2)=RBAL(RC,2)+TAMT
+           GCNTS(G,T)=GCNTS(G,T)+1
+           GBALS(G,T)=GBALS(G,T)+BAMT
+           GCNTS(0,T)=GCNTS(0,T)+1
+           GBALS(0,T)=GBALS(0,T)+BAMT
+           IF T>2 THEN
+            DO
+             GCNTS(G,8)=GCNTS(G,8)+1
+             GBALS(G,8)=GBALS(G,8)+BAMT
+             GCNTS(0,8)=GCNTS(0,8)+1
+             GBALS(0,8)=GBALS(0,8)+BAMT
+            END
+           IF LIENPOS<>"" THEN
+            DO
+             IF LIENPOS="S" THEN G=3
+             ELSE G=2
+             GCNTS(G,T)=GCNTS(G,T)+1
+             GBALS(G,T)=GBALS(G,T)+BAMT
+             IF T>2 THEN
+              DO
+               GCNTS(G,8)=GCNTS(G,8)+1
+               GBALS(G,8)=GBALS(G,8)+BAMT
+              END
+            END
+          END
+        END       
+      END
+    END
+   FILECLOSE(FNUMBER,FERROR)
+  END
+END
+
+TOTAL
+ WHILELIMIT=2147483646
+ FOR G=1 TO 11
+  DO
+   IF G=1 THEN SECHEADER="All Real Estate Loans"
+   ELSE IF G=2 THEN SECHEADER="Real Estate (1st Lien HE/HI)"
+   ELSE IF G=3 THEN SECHEADER="Real Estate (2nd Lien HE/HI)"
+   ELSE IF G=4 THEN SECHEADER="Visa Credit Cards"
+   ELSE IF G=5 THEN SECHEADER="Business Loans"
+   ELSE IF G=6 THEN SECHEADER="Line of Credit/Signature Loans"
+   ELSE IF G=7 THEN SECHEADER="Used Vehicle Secured Loans"
+   ELSE IF G=8 THEN SECHEADER="New Vehicle Secured Loans"
+[todo:]ELSE IF G=9 THEN SECHEADER="Indirect New Vehicle Secured Loans"
+[todo:]ELSE IF G=10 THEN SECHEADER="Indirect Used Vehicle Secured Loans"
+   ELSE IF G=[9]11 THEN SECHEADER="All Other Loans"
+   NEWLINE
+   FOR RI=1 TO 7  
+    DO
+     SCNT=0                                [Subtotal Loan Count]
+     SBAL=$0.00                            [Subtotal Loan DQ Balance]
+     SDQP=$0.00                            [Subtotal Loan Payents]
+     SAMT=$0.00                            [Subtotal Loan Current Balance]
+     CALL SECTIONHEADERS
+     FOR B=0 TO 99
+      DO
+       FOR J=LN TO HN
+        DO
+         FOR K=1 TO RB
+          DO
+           IF (RNUMB(K,7)=G OR (G=1 AND (RNUMB(K,7)=2 OR RNUMB(K,7)=3))) AND RNUMB(K,1)=RJ AND RNUMB(K,2)=B AND RNUMB(K,3)=J THEN  [Section,Loan Type,Delq Days]
+            DO
+             COL=1 RCHAR(K,1)                            [Account Number]
+             COL=12 RCHAR(K,2)                           [Name]
+             COL=29 RCHAR(K,3)                           [Loan ID]
+             COL=35 RNUMB(K,2)                           [Loan Type]
+             COL=38 RCHAR(K,4)                           [Loan Description] 
+             COL=64 RNUMB(K,3)                           [Days Delinquent]
+             COL=75 RBALS(K,1)                           [Delinquent Amount]
+             COL=86 RBALS(K,2)                           [Loan Payment]
+             COL=89 FORMAT("99/99/99",RDATE(K))          [Loan Due Date]
+             COL=111 RBALS(K,3)                          [Loan Balance]
+             COL=116 RNUMB(K,4)                          [Loan Risk Value from Account/Loan]
+             COL=122 RNUMB(K,5)                          [Loan Officer]   
+             COL=127 RNUMB(K,6)                          [Collateral Code]
+             COL=130 RCHAR(K,5)                          [Bankruptcy] 
+             NEWLINE
+             SCNT=SCNT+1                                 [Subtotal Loan Count]
+             SBAL=SBAL+RBALS(K,1)                        [Subtotal Loan DQ Balance]
+             SDQP=SDQP+RBALS(K,2)                        [Subtotal Loan Payents]
+             SAMT=SAMT+RBALS(K,3)                        [Subtotal Loan Current Balance]
+            END
+          END
+        END
+      END
+     COL=1 REPEATCHR("-",132)
+     NEWLINE
+     COL=1 "Total: "
+     PRINT SCNT                                 [Subtotal Loan Count]
+     COL=75 SBAL                                [Subtotal Loan DQ Balance]
+     COL=111 SAMT                               [Subtotal Loan Current Balance]
+     NEWLINE
+     COL=86 SDQP                                [Subtotal Loan Payents]
+     NEWLINE
+     IF G>1 THEN
+      DO
+       TCNT=TCNT+SCNT                             [Total Loan Count]
+       TBAL=TBAL+SBAL                             [Total Loan DQ Balance]
+       TDQP=TDQP+SDQP                             [Total Loan Payents]
+       TAMT=TAMT+SAMT                             [Total Loan Current Balance]
+      END
+    END
+   CALL PRINTSUMMARY
+  END
+ NEWLINE
+ COL=1 REPEATCHR("-",132)
+ NEWLINE
+ COL=1 REPEATCHR("-",132)
+ NEWLINE
+ COL=1 "Grand Total: "
+ PRINT TCNT
+ COL=75 TBAL
+ COL=111 TAMT
+ NEWLINE
+ COL=86 TDQP
+ NEWLINE
+ SCNT=0
+ SBAL=$0.00
+ TCNT=0
+ TBAL=$0.00
+ COL=1 "Total Delinquent Loans"
+ COL=60 "Total Delinquent Loans"
+ NEWLINE
+ COL=1 REPEATCHR("-",40)
+ NEWLINE
+ COL=1 "Period"
+ COL=20 "#Loans"
+ COL=36 "Total"
+ COL=60 "Period"
+ COL=79 "#Loans"
+ COL=95 "Total"
+ NEWLINE
+ COL=1 REPEATCHR("-",40)
+ COL=60 REPEATCHR("-",40)
+ NEWLINE
+ FOR H=2 TO 8
+  DO
+   IF H=8 THEN
+    DO
+     COL=1 REPEATCHR("-",40)
+     NEWLINE
+    END
+   IF H=1 THEN COL=1 "11-29 Days"
+   ELSE IF H=2 THEN COL=1 "30-59 Days"
+   ELSE IF H=3 THEN COL=1 "60-89 Days"
+   ELSE IF H=4 THEN COL=1 "90-119 Days"
+   ELSE IF H=5 THEN COL=1 "120-179 Days"
+   ELSE IF H=6 THEN COL=1 "180-359 Days"
+   ELSE IF H=7 THEN COL=1 "360 Days & Up"
+   ELSE COL=1 "Total 60 Days and Up"
+   COL=25 GCNTS(0,H)
+   COL=40 GBALS(0,H)
+   IF H=2 THEN 
+    DO
+     COL=60 "30-59 Days"
+     COL=84 GCNTS(0,2)
+     COL=99 GBALS(0,2)
+    END
+   ELSE IF H=3 THEN 
+    DO
+     COL=60 "60-179 Days"
+     COL=84 GCNTS(0,3)+GCNTS(0,4)+GCNTS(0,5)
+     COL=99 GBALS(0,3)+GBALS(0,4)+GBALS(0,5)
+    END
+   ELSE IF H=4 THEN 
+    DO
+     COL=60 "180-359 Days"
+     COL=84 GCNTS(0,6)
+     COL=99 GBALS(0,6)
+    END
+   ELSE IF H=5 THEN 
+    DO
+     COL=60 "360 Days & Up"
+     COL=84 GCNTS(0,7)
+     COL=99 GBALS(0,7)
+    END
+   ELSE IF H=6 THEN COL=60 REPEATCHR("-",40)
+   ELSE IF H=7 THEN
+    DO 
+     COL=60 "Total 60 Days and Up"
+     COL=84 GCNTS(0,8)
+     COL=99 GBALS(0,8)
+    END
+   NEWLINE
+  END
+ NEWPAGE
+ NEWLINE
+ NEWLINE
+ FOR T=1 TO 7                                  [Totals by report range]
+  DO
+   IF T>1 THEN
+    DO
+     COL=1 REPEATCHR("-",65)
+     NEWLINE
+     COL=1 "Total: "
+     PRINT SCNT
+     COL=65 SBAL
+     NEWLINE
+     NEWLINE
+     SBAL=$0.00
+     SCNT=0
+    END
+   IF T=1 THEN COL=1 "11-29"
+   ELSE IF T=2 THEN COL=1 "30-59"
+   ELSE IF T=3 THEN COL=1 "60-89"
+   ELSE IF T=4 THEN COL=1 "90-119"
+   ELSE IF T=5 THEN COL=1 "120-179"
+   ELSE IF T=6 THEN COL=1 "180-359"
+   ELSE COL=1 "360 Days & Up"
+   PRINT " Days Delinquent"
+   NEWLINE
+   COL=1 REPEATCHR("-",65)
+   NEWLINE
+   COL=2 "Type Description"
+   COL=45 "#Loans"
+   COL=61 "Total"
+   NEWLINE
+   COL=1 REPEATCHR("-",65)
+   NEWLINE
+   FOR L=0 TO 9999
+    DO
+     IF TCNTS(T,L)>0 THEN
+      DO
+       COL=5  L
+       COL=7 LOANDESC(L)
+       COL=50 TCNTS(T,L)
+       COL=65 TBALS(T,L)
+       NEWLINE
+       SCNT=SCNT+TCNTS(T,L)
+       SBAL=SBAL+TBALS(T,L)
+       TCNT=TCNT+TCNTS(T,L)
+       TBAL=TBAL+TBALS(T,L)
+      END
+    END
+  END
+ COL=1 REPEATCHR("-",65)
+ NEWLINE
+ COL=1 "Total: "
+ PRINT SCNT
+ COL=65 SBAL
+ NEWLINE
+ COL=1 REPEATCHR("-",65)
+ NEWLINE
+ COL=1 "Total: "
+ PRINT TCNT
+ COL=65 TBAL
+ NEWLINE
+ NEWPAGE
+ COL=1 "Summary by Loan Officer"
+ NEWLINE
+ COL=1 "Loan Officer"
+ COL=46 "Count"
+ COL=54 "Loan Balance"
+ COL=67 "Delinquent Amt"
+ COL=1 REPEATCHR("-",80)
+ NEWLINE
+ FOR I=0 TO 1024
+  DO
+   IF LCNT(I)>0 THEN
+    DO
+     COL=4 I
+     IF I=0 THEN COL=6 "Officer Code not on Loan"
+     ELSE COL=6 SYSUSERNAME(I)
+     COL=50 LCNT(I)
+     COL=65 LBAL(I,1)
+     COL=80 LBAL(I,2)
+     NEWLINE
+     T1=T1+LCNT(I)
+     T2=T2+LBAL(I,1)
+     T3=T3+LBAL(I,2)
+    END
+  END
+ COL=1 REPEATCHR("-",80)
+ NEWLINE
+ COL=50 T1
+ COL=65 T2
+ COL=80 T3
+ T1=0
+ T2=$0.00
+ T3=$0.00
+ NEWLINE
+ NEWLINE
+ COL=1 "Summary by Collateral Code"
+ NEWLINE
+ COL=1 "Collateral Code"
+ COL=46 "Count"
+ COL=54 "Loan Balance"
+ COL=67 "Delinquent Amt"
+ COL=1 REPEATCHR("-",80)
+ NEWLINE
+ FOR I=0 TO 1000
+  DO
+   IF CCNT(I)>0 THEN
+    DO
+     COL=4 I
+     COL=6 COLLDESC(I)
+     COL=50 CCNT(I)
+     COL=65 CBAL(I,1)
+     COL=80 CBAL(I,2)
+     NEWLINE
+     T1=T1+CCNT(I)
+     T2=T2+CBAL(I,1)
+     T3=T3+CBAL(I,2)
+    END
+  END
+ COL=1 REPEATCHR("-",80)
+ NEWLINE
+ COL=50 T1
+ COL=65 T2
+ COL=80 T3
+ T1=0
+ T2=$0.00
+ T3=$0.00
+ NEWLINE
+ NEWLINE
+ COL=1 "Summary by Loan Risk Index"
+ NEWLINE
+ COL=1 "Risk Index"
+ COL=46 "Count"
+ COL=54 "Loan Balance"
+ COL=67 "Delinquent Amt"
+ COL=1 REPEATCHR("-",80)
+ NEWLINE
+ FOR I=0 TO 7
+  DO
+   IF RCNT(I)>0 THEN
+    DO
+     COL=4 I
+     COL=6 RSKDESC(I)
+     COL=50 RCNT(I)
+     COL=65 RBAL(I,1)
+     COL=80 RBAL(I,2)
+     NEWLINE
+     T1=T1+RCNT(I)
+     T2=T2+RBAL(I,1)
+     T3=T3+RBAL(I,2)
+    END
+  END
+ COL=1 REPEATCHR("-",80)
+ NEWLINE
+ COL=50 T1
+ COL=65 T2
+ COL=80 T3
+ NEWLINE
+END
+
+PROCEDURE SECTIONHEADERS
+ IF RI=1 THEN 
+  DO
+   RJ=11
+   COL=1 SECHEADER+" 11-29 Days Delinquent"
+   LN=0
+   HN=29
+  END
+ ELSE IF RI=2 THEN
+  DO
+   RJ=30
+   NEWLINE
+   COL=1 SECHEADER+" 30-59 Days Delinquent"
+   LN=30
+   HN=59
+  END
+ ELSE IF RI=3 THEN 
+  DO
+   RJ=60
+   NEWLINE
+   COL=1 SECHEADER+" 60-89 Days Delinquent"
+   LN=60
+   HN=89
+  END
+ ELSE IF RI=4 THEN
+  DO
+   RJ=90
+   COL=1 SECHEADER+" 90-119 Days Delinquent"
+   LN=90
+   HN=119
+  END
+ ELSE IF RI=5 THEN 
+  DO
+   RJ=120
+   NEWLINE
+   COL=1 SECHEADER+" 120-179 Days Delinquent"
+   LN=120
+   HN=179
+  END
+ ELSE IF RI=6 THEN
+  DO
+   RJ=180
+   NEWLINE
+   COL=1 SECHEADER+" 180-359 Days Delinquent"
+   LN=180
+   HN=359
+  END
+ ELSE 
+  DO
+   RJ=360
+   NEWLINE
+   COL=1 SECHEADER+" 360 Days & Up Days Delinquent"
+   LN=360
+   HN=HTOT
+  END
+ NEWLINE
+ COL=1 REPEATCHR("-",132)
+ NEWLINE
+END
+
+PROCEDURE PRINTSUMMARY
+ COL=1 "Summary for Auditors"
+ COL=60 "Summary for Board"
+ NEWLINE
+ COL=1 REPEATCHR("-",40)
+ COL=60 REPEATCHR("-",40)
+ NEWLINE
+ IF G=1 THEN 
+  DO
+   COL=1 "All Real Estate Loans"
+   COL=60 "All Real Estate Loans"
+  END
+ ELSE IF G=2 THEN 
+  DO
+   COL=1 "Real Estate (1st Lien HE/HI)"
+   COL=60 "Real Estate (1st Lien HE/HI)"
+  END
+ ELSE IF G=3 THEN 
+  DO
+   COL=1 "Real Estate (2nd Lien HE/HI)"
+   COL=60 "Real Estate (2nd Lien HE/HI)"
+  END
+ ELSE IF G=4 THEN 
+  DO
+   COL=1 "Visa Credit Cards"
+   COL=60 "Visa Credit Cards"
+  END
+ ELSE IF G=5 THEN 
+  DO
+   COL=1 "Business Loans"
+   COL=60 "Business Loans"
+  END
+ ELSE IF G=6 THEN 
+  DO
+   COL=1 "Line of Credit/Signature Loans"
+   COL=60 "Line of Credit/Signature Loans"
+  END
+ ELSE IF G=7 THEN 
+  DO
+   COL=1 "Used Vehicle Secured Loans"
+   COL=60 "Used Vehicle Secured Loans"
+  END
+ ELSE IF G=8 THEN 
+  DO
+   COL=1 "New Vehicle Secured Loans"
+   COL=60 "New Vehicle Secured Loans"
+  END
+[todo:IF G=9 or G=10]  
+ ELSE IF G=9 THEN 
+  DO
+   COL=1 "Indirect New Vehicle Secured Loans"
+   COL=60 "Indirect New Vehicle Secured Loans"
+  END
+ ELSE IF G=10 THEN 
+  DO
+   COL=1 "Indirect Used Vehicle Secured Loans"
+   COL=60 "Indirect Used Vehicle Secured Loans"
+  END      
+ ELSE IF G=[9]11 THEN
+  DO
+   COL=1 "All Other Loans"
+   COL=60 "All Other Loans"
+  END
+ NEWLINE
+ COL=1 REPEATCHR("-",40)
+ COL=60 REPEATCHR("-",40)
+ NEWLINE
+ COL=1 "Period"
+ COL=20 "#Loans"
+ COL=36 "Total"
+ COL=60 "Period"
+ COL=79 "#Loans"
+ COL=95 "Total"
+ NEWLINE
+ COL=1 REPEATCHR("-",40)
+ COL=60 REPEATCHR("-",40)
+ NEWLINE
+ FOR H=2 TO 8               [Skip 1  because under 30 days]
+  DO
+   IF H=8 THEN
+    DO
+     COL=1 REPEATCHR("-",40)
+     NEWLINE 
+    END
+   IF H=1 THEN COL=1 "11-29 Days"
+   ELSE IF H=2 THEN COL=1 "30-59 Days"
+   ELSE IF H=3 THEN COL=1 "60-89 Days"
+   ELSE IF H=4 THEN COL=1 "90-119 Days"
+   ELSE IF H=5 THEN COL=1 "120-179 Days"
+   ELSE IF H=6 THEN COL=1 "180-359 Days"
+   ELSE IF H=7 THEN COL=1 "360 Days & Up"
+   ELSE COL=1 "Total 60 Days and Up"
+   COL=25 GCNTS(G,H)
+   COL=40 GBALS(G,H)
+   IF H=2 THEN 
+    DO
+     COL=60 "30-59 Days"
+     COL=84 GCNTS(G,2)
+     COL=99 GBALS(G,2)
+    END
+   ELSE IF H=3 THEN 
+    DO
+     COL=60 "60-179"
+     COL=84 GCNTS(G,3)+GCNTS(G,4)+GCNTS(G,5)
+     COL=99 GBALS(G,3)+GBALS(G,4)+GBALS(G,5)
+    END
+   ELSE IF H=4 THEN 
+    DO
+     COL=60 "180-359 Days"
+     COL=84 GCNTS(G,6)
+     COL=99 GBALS(G,6)
+    END
+   ELSE IF H=5 THEN 
+    DO
+     COL=60 "360 Days & Up"
+     COL=84 GCNTS(G,7)
+     COL=99 GBALS(G,7)
+    END
+   IF H=6 THEN COL=60 REPEATCHR("-",40)
+   ELSE IF H=7 THEN
+    DO 
+     COL=60 "Total 60 Days and Up"
+     COL=84 GCNTS(G,8)
+     COL=99 GBALS(G,8)
+    END
+   NEWLINE
+  END
+ NEWLINE
+ NEWLINE
+END

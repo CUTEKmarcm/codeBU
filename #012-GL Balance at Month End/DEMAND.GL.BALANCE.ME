@@ -1,0 +1,128 @@
+[
+****************************************************************************************
+*****  Copyright 2023 CUTEK. All rights reserved.                     rev 01-2023  *****
+*****                                                                              *****
+*****  This licensed source code may not be reproduced, displayed, modified or     *****
+*****  distributed without the express prior written permission of the copyright   *****
+*****  holder. As implemented with CUTEK products, code is licensed only for the   *****
+*****  license term of the agreement. For further information, contact             *****
+*****  sales@cutek.com                                                             *****
+****************************************************************************************
+
+ Client name:  Austin Telco
+ File name:    DEMAND.GL.BALANCE.ME
+ Created by:   CUTEK, Inc. - Marc Middleton
+ Created on:   JANUARY 2023
+ CUTEK Ticket: 32283
+ 
+ Description:
+ GL Balance at Month End for the Following*:
+ 729100
+ 151200
+ 722000
+ 723000
+ 724200
+ 870008
+ 870003
+ 805500
+ 805501
+ 805502
+ 870008
+ *SET in Help File: GL.BALANCE.ME.GL
+ 
+ Modified by:  
+ Modified on:  
+ Modification: 
+]
+SUBROUTINE DEMAND WINDOWS
+
+TARGET=ACCOUNT
+
+DEFINE
+ Z=NUMBER
+ G=NUMBER
+ MONTHENDGLS=CHARACTER(6) ARRAY(999)
+ FNUMBER1=NUMBER
+ FERROR1=CHARACTER
+ FLINE1=CHARACTER
+END
+
+SETUP
+ CALL GETGL 
+ HTMLVIEWOPEN(0)
+ HTMLVIEWLINE("<HTML><HEAD><TITLE>JavaScript Form Elements</TITLE>")
+ HTMLVIEWLINE("<STYLE>")
+ HTMLVIEWLINE("BODY    {FONT: 13PX ARIAL, SANS-SERIF;}")
+ HTMLVIEWLINE("TABLE   {FONT: 13PX ARIAL, SANS-SERIF;}")
+ HTMLVIEWLINE("</STYLE>")
+ HTMLVIEWLINE("</HEAD>")
+ HTMLVIEWLINE("<BODY BGCOLOR=WHITE>")
+ HTMLVIEWLINE("<H2>GL Balance "+FORMAT("99/99/9999",SYSTEMDATE)+"</H2><BR>")
+ HTMLVIEWLINE("<FORM NAME='htmlrginputform' METHOD=POST ACTION=symitar://HTMLView~Action=Post>")
+ HTMLVIEWLINE("<TABLE WIDTH='100%' BORDER='1' CELLPADDING='5'>") 
+ HTMLVIEWLINE("<TD>")
+ HTMLVIEWLINE("<H3>Account</H3>")
+ HTMLVIEWLINE("<TD ALIGN='RIGHT'>")
+ HTMLVIEWLINE("<H3>Balance</H3>")
+ HTMLVIEWLINE("<TD ALIGN='RIGHT'>")
+ HTMLVIEWLINE("<H3>1 Month Ago</H3>")
+ HTMLVIEWLINE("<TD>")
+ HTMLVIEWLINE("<H3>Name</H3>")
+ HTMLVIEWLINE("<TR>")  
+ FOR Z=1 TO G
+  DO
+   FOR GLACCOUNT WITH NUMBER MONTHENDGLS(Z)+"+" 
+    DO
+     HTMLVIEWLINE("<TD>")
+     HTMLVIEWLINE(GLACCOUNT:NUMBER)
+     HTMLVIEWLINE("<TD ALIGN='RIGHT'>")
+     HTMLVIEWLINE(FORMAT("###,###,##9.99+",GLACCOUNT:BALANCE))
+     HTMLVIEWLINE("<TD ALIGN='RIGHT'>")
+     HTMLVIEWLINE(FORMAT("###,###,##9.99+",GLACCOUNT:HISTORICALBALANCE:1))
+     HTMLVIEWLINE("<TD>")
+     HTMLVIEWLINE(GLACCOUNT:NAME)
+     HTMLVIEWLINE("<TR>")
+    END
+  END   
+ HTMLVIEWLINE("</BODY></HTML>")
+ HTMLVIEWDISPLAY 
+END
+
+SELECT
+ NONE
+END
+
+PRINT TITLE="GL.BALANCE.ME" REPORTCATEGORY=""
+ SUPPRESSNEWLINE
+END
+
+PROCEDURE GETGL
+ G=0
+ FILEOPEN("HELP","GL.BALANCE.ME.GL","READ",FNUMBER1,FERROR1)
+ IF FERROR1<>"" THEN
+  DO
+   PRINT "Error Opening File: "
+   PRINT FERROR1
+   NEWLINE
+  END 
+ WHILE FERROR1=""
+  DO
+   FILEREADLINE(FNUMBER1,FLINE1,FERROR1)
+   IF FERROR1="" THEN
+    DO
+     IF SEGMENT(FLINE1,01,01)<>"#" THEN
+      DO
+       G=G+1
+       MONTHENDGLS(G)=SEGMENT(FLINE1,01,LENGTH(FLINE1))
+      END
+    END 
+  END 
+ FILECLOSE(FNUMBER1,FERROR1)
+ IF FERROR1<>"" THEN
+  DO
+   NEWPAGE
+   PRINT "Error Closing File: "+FERROR1 
+   NEWLINE
+   NEWLINE
+  END  
+END

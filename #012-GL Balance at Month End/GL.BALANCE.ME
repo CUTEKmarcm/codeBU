@@ -1,0 +1,107 @@
+[
+****************************************************************************************
+*****  Copyright 2023 CUTEK. All rights reserved.                     rev 01-2023  *****
+*****                                                                              *****
+*****  This licensed source code may not be reproduced, displayed, modified or     *****
+*****  distributed without the express prior written permission of the copyright   *****
+*****  holder. As implemented with CUTEK products, code is licensed only for the   *****
+*****  license term of the agreement. For further information, contact             *****
+*****  sales@cutek.com                                                             *****
+****************************************************************************************
+
+ Client name:  Austin Telco
+ File name:    GL.BALANCE.ME
+ Created by:   CUTEK, Inc. - Marc Middleton
+ Created on:   JANUARY 2023
+ CUTEK Ticket: 32283
+ 
+ Description:
+ GL Balance at Month End for the Following*:
+ 729100
+ 151200
+ 722000
+ 723000
+ 724200
+ 870008
+ 870003
+ 805500
+ 805501
+ 805502
+ 870008
+ *SET in Help File: GL.BALANCE.ME.GL
+ 
+ Modified by:  
+ Modified on:  
+ Modification: 
+]
+TARGET=ACCOUNT
+
+DEFINE
+ Z=NUMBER
+ G=NUMBER
+ MONTHENDGLS=CHARACTER(6) ARRAY(999)
+ FNUMBER1=NUMBER
+ FERROR1=CHARACTER
+ FLINE1=CHARACTER
+END
+
+SETUP
+ CALL GETGL
+END
+
+SELECT
+ NONE
+END
+
+PRINT TITLE="GL.BALANCE.ME" REPORTCATEGORY=""
+ HEADERS
+  COL=001 "GL"
+  COL=020 RIGHT "BALANCE"
+  COL=035 RIGHT "1 Month Ago"
+  COL=039 "NAME"
+  NEWLINE
+  COL=001 REPEATCHR("=",85)
+ END  
+ FOR Z=1 TO G
+  DO
+   PRINT MONTHENDGLS(Z)
+   FOR GLACCOUNT WITH NUMBER MONTHENDGLS(Z)+"+" 
+    DO
+     COL=020 GLACCOUNT:BALANCE
+     COL=035 GLACCOUNT:HISTORICALBALANCE:1
+     COL=039 GLACCOUNT:NAME
+     NEWLINE
+    END
+  END
+END
+
+PROCEDURE GETGL
+ G=0
+ FILEOPEN("HELP","GL.BALANCE.ME.GL","READ",FNUMBER1,FERROR1)
+ IF FERROR1<>"" THEN
+  DO
+   PRINT "Error Opening File: "
+   PRINT FERROR1
+   NEWLINE
+  END 
+ WHILE FERROR1=""
+  DO
+   FILEREADLINE(FNUMBER1,FLINE1,FERROR1)
+   IF FERROR1="" THEN
+    DO
+     IF SEGMENT(FLINE1,01,01)<>"#" THEN
+      DO
+       G=G+1
+       MONTHENDGLS(G)=SEGMENT(FLINE1,01,LENGTH(FLINE1))
+      END
+    END 
+  END 
+ FILECLOSE(FNUMBER1,FERROR1)
+ IF FERROR1<>"" THEN
+  DO
+   NEWPAGE
+   PRINT "Error Closing File: "+FERROR1 
+   NEWLINE
+   NEWLINE
+  END  
+END
