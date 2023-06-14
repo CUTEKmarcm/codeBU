@@ -1,0 +1,232 @@
+[
+****************************************************************************************
+*****  Copyright 2022 CUTEK. All rights reserved.                     rev 01-2022  *****
+*****                                                                              *****
+*****  This licensed source code may not be reproduced, displayed, modified or     *****
+*****  distributed without the express prior written permission of the copyright   *****
+*****  holder. As implemented with CUTEK products, code is licensed only for the   *****
+*****  license term of the agreement. For further information, contact             *****
+*****  sales@cutek.com                                                             *****
+****************************************************************************************
+
+ Client name:  Austin Telco FCU
+ File name:    CARD.TRACKING.85
+ Created by:   CUTEK, Inc. - Marc Middleton
+ Created on:   APRIL 2023
+ CUTEK Ticket: 33052
+ 
+ Description:
+ We need a report or reports showing which accounts have a cell phone and an email 
+  populated in the name prime record and has active debit card(s) (card type 30) 
+  or active debit card(s) with a card name mail record that has the cell phone and email populated. 
+ In each scenario both fields must be populated.
+  
+ I am not sure if the order makes a difference but I think looking 1st at the card record 
+  to see if it has a card name mail record that has both record fields populated 
+  and if it doesn’t fall back to checking the name prime record for those 2 fields.
+  
+ If the account comes back meeting the criteria above we’d like account tracking 85 added to the account per card. 
+ There are 4 fields in the tracking record we’d like populated:
+  
+ PAN (card number)
+ 3D Include Email? (Y/N) Set Y
+ 3D Include Email? (Y/N) Set Y
+ Digital Activation Date (Date Tracking Record 85 was Created)
+  
+ Avery Sneed
+ 
+ Modified by:  
+ Modified on:  
+ Modification: 
+]
+TARGET=ACCOUNT
+
+DEFINE
+ TRUE=1
+ FALSE=0
+ CN=NUMBER
+ PRIMEEMAIL=CHARACTER(60)
+ PRIMEMOBILE=CHARACTER(60)
+ PRIMENAME=CHARACTER(60) 
+ Z=NUMBER
+ CARDNUMBER=CHARACTER(60) ARRAY(99)
+ CARDNAME=CHARACTER(60) ARRAY(99)
+ CARDNAMEEMAIL=CHARACTER(60) ARRAY(99)
+ CARDNAMEMOBILE=CHARACTER(60) ARRAY(99) 
+ TRAXLOC=NUMBER ARRAY(99)
+ TRAXPAN=CHARACTER(60) ARRAY(99)
+ TRAX3DINCLUDEEMAIL=CHARACTER(60) ARRAY(99)
+ TRAX3DINCLUDEEMAIL2=CHARACTER(60) ARRAY(99)
+ TRAXDIGACTDATE=DATE ARRAY(99)  
+ NONAMECARDNUMBER=CHARACTER
+ C=NUMBER
+ PRIMECARDNUMBER=CHARACTER
+ #INCLUDE "RD.OUTPUT.DEF"
+ OUTPUTCHANNEL1=NUMBER
+ ERRORTEXT=CHARACTER
+ ERRORTEXTIGNORE=CHARACTER
+ T=NUMBER
+ SETCARDNUMBER=CHARACTER
+ CARDTRAXEXIST=NUMBER
+ Q=NUMBER
+END
+
+SETUP
+ OUTPUTOPEN(OUTPUTDEVREPORT,0,"TRACKING.85.FM","FMREPORTS",OUTPUTCHANNEL1,ERRORTEXT)
+ IF ERRORTEXT<>"" THEN CALL ERRORHANDLER
+END 
+
+SELECT
+ ACCOUNT:CLOSEDATE='--/--/--'
+END
+
+PRINT TITLE="CARD.TRACKING.85" REPORTCATEGORY="CREDEBCARD"
+ HEADER="" 
+ CALL INITALL
+ FOR EACH TRACKING WITH TRACKING:TYPE=85 AND (TRACKING:EXPIREDATE='--/--/--' OR TRACKING:EXPIREDATE>SYSTEMDATE)
+  DO
+   T=T+1
+   TRAXLOC(T)             = TRACKING:LOCATOR   
+   TRAXPAN(T)             = TRACKING:USERCHAR1
+   TRAX3DINCLUDEEMAIL(T)  = TRACKING:USERCHAR2
+   TRAX3DINCLUDEEMAIL2(T) = TRACKING:USERCHAR3
+   TRAXDIGACTDATE(T)      = TRACKING:USERDATE1
+  END 
+ FOR EACH CARD WITH CARD:TYPE=30 AND CARD:STATUS<>2 AND
+                   (CARD:CLOSEDATE='--/--/--' OR CARD:CLOSEDATE>SYSTEMDATE) AND
+                   (CARD:EXPIRATIONDATE='--/--/--' OR CARD:EXPIRATIONDATE>SYSTEMDATE)                      
+  DO   
+   C=C+1
+   FOR EACH CARD NAME
+    DO
+     IF CARD NAME:EMAIL<>"" AND CHARACTERSEARCH(CARD NAME:EMAIL,"@")>0 AND CARD NAME:MOBILEPHONE<>"" AND CARD NAME:MOBILEPHONE<>"000-000-0000" THEN
+      DO
+       CN=CN+1
+       CARDNUMBER(CN)=CARD:NUMBER
+       CARDNAME(CN)=CARD NAME:LONGNAME
+       CARDNAMEEMAIL(CN)=CARD NAME:EMAIL
+       CARDNAMEMOBILE(CN)=CARD NAME:MOBILEPHONE
+       CALL CARDSPRINT
+      END
+    END
+   IF CN=0 THEN
+    DO
+     NONAMECARDNUMBER=CARD:NUMBER
+    END  
+  END 
+ IF CN=0 AND C>0 THEN
+  DO
+   FOR EACH NAME WITH NAME:TYPE=0
+    DO 
+     IF NAME:EMAIL<>"" AND CHARACTERSEARCH(NAME:EMAIL,"@")>0 AND NAME:MOBILEPHONE<>"" AND NAME:MOBILEPHONE<>"000-000-0000" THEN
+      DO
+       PRIMECARDNUMBER=NONAMECARDNUMBER
+       PRIMENAME=NAME:LONGNAME
+       PRIMEEMAIL=NAME:EMAIL
+       PRIMEMOBILE=NAME:MOBILEPHONE
+       CALL PRIMEPRINT
+      END
+    END
+  END                  
+END
+
+PROCEDURE CARDSPRINT
+ COL=001 ACCOUNT:NUMBER
+ COL=013 CARDNUMBER(CN)
+ COL=033 "CN-"+CARDNAME(CN)
+ COL=075 CARDNAMEEMAIL(CN)
+ COL=120 CARDNAMEMOBILE(CN)
+ SETCARDNUMBER=CARDNUMBER(CN)
+ IF T>0 THEN
+  DO
+   CALL TRACKINGEXISTS
+  END 
+ IF T=0 THEN
+  DO
+   CALL CREATETRACKING
+  END
+END
+
+PROCEDURE PRIMEPRINT
+ COL=001 ACCOUNT:NUMBER
+ COL=013 PRIMECARDNUMBER
+ COL=033 "PN-"+PRIMENAME
+ COL=075 PRIMEEMAIL
+ COL=120 PRIMEMOBILE
+ SETCARDNUMBER=PRIMECARDNUMBER
+ IF T>0 THEN
+  DO
+   CALL TRACKINGEXISTS
+  END 
+ IF T=0 THEN
+  DO
+   CALL CREATETRACKING
+  END
+END
+
+PROCEDURE CREATETRACKING
+ OUTPUTSWITCH(OUTPUTCHANNEL1,ERRORTEXT)
+ HEADER=""
+ COL=01 "ACCOUNT "+ACCOUNT:NUMBER+" CREATE TRACKING AFTERLAST "
+ NEWLINE
+ COL=03 "SET TYPE TO"
+ COL=49 "85"
+ NEWLINE
+ COL=03 "SET USERCHAR1 TO"
+ COL=49 SETCARDNUMBER
+ NEWLINE
+ COL=03 "SET USERCHAR2 TO"
+ COL=49 "Y"
+ NEWLINE
+ COL=03 "SET USERCHAR3 TO"
+ COL=49 "Y"
+ NEWLINE
+ COL=03 "SET USERDATE1 TO"
+ COL=49 FORMAT("99/99/9999",SYSTEMDATE)    
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)
+END
+
+PROCEDURE TRACKINGEXISTS
+ CARDTRAXEXIST=FALSE
+ FOR Q=1 TO T
+  DO
+   IF TRAXPAN(Q)=SETCARDNUMBER THEN
+    DO
+     CARDTRAXEXIST=TRUE
+    END
+  END
+ IF CARDTRAXEXIST=FALSE THEN
+  DO
+   T=0   
+  END 
+END 
+
+PROCEDURE ERRORHANDLER
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXTIGNORE)
+ PRINT "Error: "+ERRORTEXT
+ NEWLINE
+ TERMINATE
+END
+
+PROCEDURE INITALL
+ T=0
+ C=0
+ CN=0 
+ PRIMEEMAIL=""
+ PRIMEMOBILE=""
+ NONAMECARDNUMBER=""
+ PRIMECARDNUMBER=""
+ SETCARDNUMBER=""
+ FOR Z=1 TO 99
+  DO
+   CARDNUMBER(Z)=""
+   CARDNAME(Z)=""
+   CARDNAMEEMAIL(Z)=""
+   CARDNAMEMOBILE(Z)="" 
+   TRAXLOC(Z)=0
+   TRAXPAN(Z)=""
+   TRAX3DINCLUDEEMAIL(Z)=""
+   TRAX3DINCLUDEEMAIL2(Z)=""
+   TRAXDIGACTDATE(Z)='--/--/--'
+  END
+END  
