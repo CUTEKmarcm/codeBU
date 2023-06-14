@@ -1,0 +1,138 @@
+Parsed:
+
+Output Name				Description			Format			Justification	Max
+-------------------------------------------------------------------------------
+First_Name				First Name			Char            Left			20
+Middle_Name				Middle Name			Char            Left			20
+Last_Name				Last Name			Char            Left			32
+Name_Suffix				First suffix		Char            Left			4
+Birth_Date				Date (yyyy-mm-dd)	Char            Left			10
+Soc_Security_Num		The Social Security	Char            Left			9
+Street_Number			house number.		Char            Left			10
+Pre_Directional			directional			Char            Left			2
+Street_Name				street name			Char           	Left			27
+Post_Directional		directional			Char         	Left			2
+Street_Type				type of street.  	Char       		Left			2
+Apartment_Unit_Number	unit number. 		Char           	Left			5
+City_Name				City Name			Char           	Left			28
+State					state abbreviation	Char          	Left			2
+Zip_Code				5 digit zip Code	Char           	Left			5
+Zip4_Code				4 digit Zip+4 Code	Char            Left			4
+Filler					50 bytes of misc	Char            Left			50
+																			==
+																			232
+																			
+PROCEDURE OUTPUTHEADER
+ DATASIZE=20 "First_Name"                  
+ DATASIZE=20 "Middle_Name" 
+ DATASIZE=32 "Last_Name" 
+ DATASIZE=04 "Name_Suffix"
+ DATASIZE=10 "Birth_Date"
+ DATASIZE=09 "Soc_Security_Num" 
+ DATASIZE=10 "Street_Number" 
+ DATASIZE=02 "Pre_Directional" 
+ DATASIZE=27 "Street_Name"
+ DATASIZE=02 "Post_Directional" 
+ DATASIZE=02 "Street_Type"     
+ DATASIZE=05 "Apartment_Unit_Number"
+ DATASIZE=28 "City_Name"
+ DATASIZE=02 "State"
+ DATASIZE=05 "Zip_Code"
+ DATASIZE=04 "Zip4_Code"
+ DATASIZE=50 "Filler"
+ DATASIZE=02 CRNL
+END																			
+
+PROCEDURE OUTPUTPARSEDDATA
+ AL=AL+1
+ ALLSSNS(AL)=TMPSSN
+ 
+ DATASIZE=20 TMPFIRST      [First Name]
+ DATASIZE=20 TMPMIDDLE     [Middle Name]
+ DATASIZE=32 TMPLAST       [Last Name]
+ DATASIZE=04 "Name_Suffix"
+ DATASIZE=10 TMPDOB        [Birth Date]		
+ DATASIZE=09 TMPSSN        [SSN]
+ DATASIZE=10 "Street_Number" 
+ DATASIZE=02 "Pre_Directional"  
+ DATASIZE=27 TMPSTREET     [Street]
+ DATASIZE=02 "Post_Directional" 
+ DATASIZE=02 "Street_Type" 
+ DATASIZE=05 TMPEXTRAADDR  [Extra Address]
+ DATASIZE=28 TMPCITY       [City]
+ DATASIZE=02 TMPSTATE      [State]
+ DATASIZE=05 TMPZIP        [Zip Code]
+ DATASIZE=04 "Zip4_Code"
+ DATASIZE=50 ""            [FILLER]
+ DATASIZE=02 CRNL
+ 
+ COL=1 ACCOUNT:NUMBER
+ COL=12 SEGMENT(TMPFIRST,1,20)
+ COL=35 SEGMENT(TMPMIDDLE,1,10)
+ COL=47 SEGMENT(TMPLAST,1,20)
+ COL=69 SEGMENT(TMPSSN,1,9)
+ COL=81 FORMAT("99/99/99",TMPLASTBEACON)
+ COL=94 TMPTYPE
+ NEWLINE
+ CNT=CNT+1
+END
+
+
+UnParsed:
+
+Output Name			Description			Format	Justification	Max
+-------------------------------------------------------------------
+Full_Name			Full Name			Char  	Left			72
+Name_Suffix			First suffix		Char 	Left			4
+Birth_Date			Date (yyyy-mm-dd) 	Char  	Left			10
+Soc_Security_Num	SSN					Char  	Left			9
+Unparsed_Addr_1		Full Street Address	Char	Left			48
+City_Name			City Name			Char  	Left			28
+State				Two letter state 	Char	Left			2
+Zip_Code			5 digit Zip Code	Char    Left			5
+Zip4_Code			4 digit Zip+4 Code	Char    Left			4
+Filler				50 bytes of misc.	Char 	Left			50
+																==
+																232
+																
+PROCEDURE OUTPUTHEADER
+ DATASIZE=72 "Full_Name"                  
+ DATASIZE=04 "Name_Suffix"
+ DATASIZE=10 "Birth_Date"
+ DATASIZE=09 "Soc_Security_Num" 
+ DATASIZE=48 "Unparsed_Addr_1" 
+ DATASIZE=28 "City_Name"
+ DATASIZE=02 "State"
+ DATASIZE=05 "Zip_Code"
+ DATASIZE=04 "Zip4_Code"
+ DATASIZE=50 "Filler"
+ DATASIZE=02 CRNL
+END
+
+PROCEDURE OUTPUTUNPARSEDDATA
+ AL=AL+1
+ ALLSSNS(AL)=TMPSSN
+ 
+ DATASIZE=72 TMPLONGNAME                     [Full_Name]
+ DATASIZE=04 "Name_Suffix"
+ DATASIZE=10 TMPDOB                          [Birth Date]		
+ DATASIZE=09 TMPSSN                          [SSN]
+ DATASIZE=48 TMPEXTRAADDR + " " + TMPSTREET  [Unparsed_Addr_1]
+ DATASIZE=28 TMPCITY                         [City]
+ DATASIZE=02 TMPSTATE                        [State]
+ DATASIZE=05 TMPZIP                          [Zip Code]
+ DATASIZE=04 "Zip4_Code"
+ DATASIZE=50 ""                              [FILLER]
+ DATASIZE=02 CRNL
+ 
+ COL=1 ACCOUNT:NUMBER
+ COL=12 SEGMENT(TMPFIRST,1,20)
+ COL=35 SEGMENT(TMPMIDDLE,1,10)
+ COL=47 SEGMENT(TMPLAST,1,20)
+ COL=69 SEGMENT(TMPSSN,1,9)
+ COL=81 FORMAT("99/99/99",TMPLASTBEACON)
+ COL=94 TMPTYPE
+ NEWLINE
+ CNT=CNT+1
+END
+																

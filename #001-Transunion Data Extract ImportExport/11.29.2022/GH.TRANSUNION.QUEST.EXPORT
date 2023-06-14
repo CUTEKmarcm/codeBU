@@ -1,0 +1,605 @@
+[GH.TRANSUNION.QUEST.EXPORT]
+[ The file layout is the following:          
+Parsed:
+
+Output Name				Description			Format			Justification	Max
+-------------------------------------------------------------------------------
+First_Name				First Name			Char            Left			20
+Middle_Name				Middle Name			Char            Left			20
+Last_Name				Last Name			Char            Left			32
+Name_Suffix				First suffix		Char            Left			4
+Birth_Date				Date (yyyy-mm-dd)	Char            Left			10
+Soc_Security_Num		The Social Security	Char            Left			9
+Street_Number			house number.		Char            Left			10
+Pre_Directional			directional			Char            Left			2
+Street_Name				street name			Char           	Left			27
+Post_Directional		directional			Char         	Left			2
+Street_Type				type of street.  	Char       		Left			2
+Apartment_Unit_Number	unit number. 		Char           	Left			5
+City_Name				City Name			Char           	Left			28
+State					state abbreviation	Char          	Left			2
+Zip_Code				5 digit zip Code	Char           	Left			5
+Zip4_Code				4 digit Zip+4 Code	Char            Left			4
+Filler					50 bytes of misc	Char            Left			50
+																			==
+																			232
+UnParsed:
+
+Output Name			Description			Format	Justification	Max
+-------------------------------------------------------------------
+Full_Name			Full Name			Char  	Left			72
+Name_Suffix			First suffix		Char 	Left			4
+Birth_Date			Date (yyyy-mm-dd) 	Char  	Left			10
+Soc_Security_Num	SSN					Char  	Left			9
+Unparsed_Addr_1		Full Street Address	Char	Left			48
+City_Name			City Name			Char  	Left			28
+State				Two letter state 	Char	Left			2
+Zip_Code			5 digit Zip Code	Char    Left			5
+Zip4_Code			4 digit Zip+4 Code	Char    Left			4
+Filler				50 bytes of misc.	Char 	Left			50
+																==
+																232
+																
+  The criteria for an account to be included is:
+    No ATFCU account, Charge off Account or Non Member Accounts
+    Primary and Name Types 1,6,8,9,14,16,20,21
+    They must be 18 years of age or older
+    For Primary Member - All accounts quarterly
+      No beacon found
+      No score newer than last Quarter update
+    For Other Name Types - Annually on July 1st - All accounts
+      No beacon found
+      No score newer than last Quarter update
+    All SSNs must be individual
+    The SSN cannot be blank or all the same number or 123456789 or 987654321
+    The address type must be domestic.
+    The first name, street, city, state, or zip cannot be blank.]
+
+TARGET=ACCOUNT
+
+DEFINE
+ #INCLUDE "IS.DEF"
+ TRUE=1
+ FALSE=0
+ LASTQUARTER=DATE
+ ISANNUAL=CHARACTER(1)
+ MINORDATE=DATE
+ CRNL=CHARACTER(2)
+ FNDSSN=CHARACTER(1)
+ NEWERBEACON=CHARACTER(1)
+ TMPFIRST=CHARACTER(20)
+ TMPMIDDLE=CHARACTER(20)
+ TMPLAST=CHARACTER(32)
+ TMPLONGNAME=CHARACTER(72)
+ TMPSTREET=CHARACTER(27)
+ TMPEXTRAADDR=CHARACTER(32)
+ TMPCITY=CHARACTER(28)
+ TMPSTATE=CHARACTER(2)
+ TMPZIP=CHARACTER(5)
+ TMPSSN=CHARACTER(9)
+ TMPSSNTYPE=NUMBER
+ TMPNAMETYPE=NUMBER
+ TMPDOB=CHARACTER(8)
+ TMPSUFFIX=CHARACTER
+ TMPLASTBEACON=DATE
+ TMPTYPE=CHARACTER
+ BSSN=CHARACTER(9)      ARRAY(5)
+ BDATE=DATE             ARRAY(5)
+ I=NUMBER
+ CNT=NUMBER
+ THEADER=CHARACTER
+ FMSTREET=CHARACTER(32)
+ FMEXTRAADDR=CHARACTER(32)
+ FMCITY=CHARACTER(23)
+ FMSTATE=CHARACTER(2)
+ FMZIP=CHARACTER(5)
+ OLDSTREET=CHARACTER(32)
+ OLDEXTRAADDR=CHARACTER(32)
+ OLDCITY=CHARACTER(23)
+ OLDSTATE=CHARACTER(2)
+ OLDZIP=CHARACTER(5)
+ FIRST=CHARACTER(1)
+ ALLSSNS=CHARACTER(9)        ARRAY(500000)
+ AI=NUMBER
+ AL=NUMBER
+ DONAME=CHARACTER(1)
+ PARSED=NUMBER
+END
+
+SETUP
+ PARSED=FALSE
+ FIRST="Y"
+ CRNL=CTRLCHR(13)+CTRLCHR(10)
+ LASTQUARTER=DATEREAD("Last Quarter Run Date")
+ MINORDATE=DATEOFFSET(SYSTEMDATE,-12*18,0)
+ IF MONTH(SYSTEMDATE)=6 OR MONTH(SYSTEMDATE)=7 THEN ISANNUAL="Y"
+ ELSE ISANNUAL="N"
+ [ISANNUAL=UPPERCASE(CHARACTERREAD("Is this an ANNUAL download Y/N?"))]
+ IF ISANNUAL="Y" OR ISANNUAL="1" THEN 
+  DO
+   ISANNUAL="Y"
+   THEADER="TransUnion Annual Export"
+  END
+ ELSE 
+  DO
+   ISANNUAL="N"
+   THEADER="TransUnion Quarter Export"
+  END
+ CRNL=CTRLCHR(13)+CTRLCHR(10)
+END
+
+
+SELECT
+ ACCOUNT:TYPE<90 AND ACCOUNT:CLOSEDATE='--/--/--'
+END
+
+PRINT TITLE="TransUnion Quarterly Export" DATAFILE ASCII RECORDSIZE=232 BLOCKSIZE=1860
+ HEADERS
+  COL=1 "Account"
+  COL=12 "First"
+  COL=35 "Middle"
+  COL=47 "Last"
+  COL=69 "SSN"
+  COL=81 "Last Score"
+  COL=93 "Type"
+  NEWLINE
+  COL=1 REPEATCHR("-",95)
+  NEWLINE
+ END
+
+ WHILELIMIT=2147483646
+ IF FIRST="Y" THEN
+  DO
+   IF PARSED=TRUE THEN
+    DO
+     CALL OUTPUTPARSEDHEADER
+    END
+   IF PARSED=FALSE THEN
+    DO
+     CALL OUTPUTUNPARSEDHEADER
+    END 
+  [CALL OUTPUTHEADER]
+   FIRST="N"
+  END
+ TMPFIRST=""
+ TMPMIDDLE=""
+ TMPLAST=""
+ TMPLONGNAME=""
+ TMPSTREET=""
+ TMPEXTRAADDR=""
+ TMPCITY=""
+ TMPSTATE=""
+ TMPZIP=""
+ TMPSSN=""
+ TMPDOB=""
+ TMPSUFFIX=""
+ TMPSSNTYPE=0
+ TMPNAMETYPE=0
+ CALL GETOLDADDRESS
+ CALL GETBEACONS
+
+ FOR EACH NAME WITH LENGTH(NAME:FIRST)>0 AND                       [Not a Business Name]
+          NAME:NAMEFORMAT=0 AND NAME:EXPIRATIONDATE='--/--/--' AND [Not a Business Name and not Expired]
+          NAME:BIRTHDATE<>'--/--/--' AND NAME:BIRTHDATE<=MINORDATE [Has a birthdate and is not a minor]
+  DO
+   TMPSSN=NAME:SSN
+   TMPNAMETYPE=NAME:TYPE
+   TMPSSNTYPE=NAME:SSNTYPE
+   TMPSUFFIX=NAME:SUFFIX
+   CALL CHECKNAME
+   IF (NAME:TYPE=0 OR ISANNUAL="Y") AND DONAME="Y" THEN
+    DO
+     CALL CHECKQUARTERBEACON
+     IF NEWERBEACON="N" AND (NAME:TYPE=0 OR (ISANNUAL="Y" AND (NAME:TYPE=1 OR NAME:TYPE=6))) THEN
+      DO
+       CALL CHECKALLSSNS
+       IF FNDSSN="N" THEN 
+        DO
+         TMPFIRST=NAME:FIRST
+         TMPMIDDLE=NAME:MIDDLE
+         TMPLAST=NAME:LAST
+         TMPLONGNAME=NAME:LONGNAME
+         TMPDOB=FORMAT("99",MONTH(NAME:BIRTHDATE))+FORMAT("99",DAY(NAME:BIRTHDATE))+FORMAT("9999",FULLYEAR(NAME:BIRTHDATE))
+         TMPTYPE="N - "+FORMAT("99",NAME:TYPE)
+         IF NAME:TYPE<=1 THEN CALL USEOLDADDRESS
+         ELSE IF NAME:ADDRESSTYPE=0 AND NAME:STREET<>"" AND NAME:CITY<>"" AND 
+                 NAME:STATE<>"" AND NAME:ZIPCODE<>""  THEN 
+          DO
+           TMPSTREET=NAME:STREET
+           TMPEXTRAADDR=NAME:EXTRAADDRESS
+           TMPCITY=NAME:CITY
+           TMPSTATE=NAME:STATE
+           TMPZIP=SEGMENT(NAME:ZIPCODE,1,5)
+          END
+         ELSE CALL USEOLDADDRESS
+         IF LENGTH(TMPSTREET)>=3 THEN 
+          DO
+           IF PARSED=TRUE THEN
+            DO
+             CALL OUTPUTPARSEDDATA
+            END
+           IF PARSED=FALSE THEN
+            DO
+             CALL OUTPUTUNPARSEDDATA
+            END 
+          [CALL OUTPUTDATA]
+          END 
+        END
+      END
+    END
+  END
+
+ IF ISANNUAL="Y" THEN
+  DO
+   FOR EACH LOAN WITH LOAN:CLOSEDATE='--/--/--' AND LOAN:CHARGEOFFDATE='--/--/--' AND LOAN:TYPE<>49
+    DO
+     FOR EACH LOAN NAME WITH LENGTH(LOAN NAME:FIRST)>0 AND                       [Not a Buainess Name]
+              LOAN NAME:NAMEFORMAT=0 AND LOAN NAME:EXPIRATIONDATE='--/--/--' AND [Not a Business Name and not Expired]
+              LOAN NAME:BIRTHDATE<>'--/--/--' AND LOAN NAME:BIRTHDATE<=MINORDATE [Has a birthdate and is not a minor]
+      DO
+       TMPSSN=NAME:SSN
+       TMPNAMETYPE=LOAN NAME:TYPE
+       TMPSSNTYPE=LOAN NAME:SSNTYPE
+       TMPSUFFIX=LOAN NAME:SUFFIX
+       CALL CHECKNAME
+       IF DONAME="Y" THEN
+        DO
+         CALL CHECKQUARTERBEACON
+         IF NEWERBEACON="N" THEN
+          DO
+           TMPFIRST=LOAN NAME:FIRST
+           TMPMIDDLE=LOAN NAME:MIDDLE
+           TMPLAST=LOAN NAME:LAST
+           TMPLONGNAME=LOAN NAME:LONGNAME
+           TMPDOB=FORMAT("99",MONTH(LOAN NAME:BIRTHDATE))+FORMAT("99",DAY(LOAN NAME:BIRTHDATE))+FORMAT("9999",FULLYEAR(LOAN NAME:BIRTHDATE)) 
+           TMPTYPE="L"+LOAN:ID+" - "+FORMAT("99",LOAN NAME:TYPE)
+           CALL CHECKALLSSNS
+           IF FNDSSN="N" THEN
+            DO
+             IF LOAN NAME:TYPE<=1 THEN CALL USEOLDADDRESS
+             ELSE IF LOAN NAME:ADDRESSTYPE=0 AND LOAN NAME:STREET<>"" AND LOAN NAME:CITY<>"" AND 
+                     LOAN NAME:STATE<>"" AND LOAN NAME:ZIPCODE<>""  THEN 
+              DO
+               TMPSTREET=LOAN NAME:STREET
+               TMPEXTRAADDR=LOAN NAME:EXTRAADDRESS
+               TMPCITY=LOAN NAME:CITY
+               TMPSTATE=LOAN NAME:STATE
+               TMPZIP=SEGMENT(LOAN NAME:ZIPCODE,1,5)
+              END
+             ELSE CALL USEOLDADDRESS
+             IF LENGTH(TMPSTREET)>=3 THEN 
+              DO
+               IF PARSED=TRUE THEN
+                DO
+                 CALL OUTPUTPARSEDDATA
+                END
+               IF PARSED=FALSE THEN
+                DO
+                 CALL OUTPUTUNPARSEDDATA
+                END 
+              [CALL OUTPUTDATA]
+              END 
+            END
+          END
+        END
+      END 
+    END
+
+   FOR EACH SHARE WITH SHARE:CLOSEDATE='--/--/--' AND SHARE:CHARGEOFFDATE='--/--/--'
+    DO
+     FOR EACH SHARE NAME WITH LENGTH(SHARE NAME:FIRST)>0 AND                        [Not a Buainess Name]
+              SHARE NAME:NAMEFORMAT=0 AND SHARE NAME:EXPIRATIONDATE='--/--/--' AND  [Not a Business Name and not Expired]
+              SHARE NAME:BIRTHDATE<>'--/--/--' AND SHARE NAME:BIRTHDATE<=MINORDATE  [Has a birthdate and is not a minor]
+      DO
+       TMPSSN=SHARE NAME:SSN
+       TMPNAMETYPE=SHARE NAME:TYPE
+       TMPSSNTYPE=SHARE NAME:SSNTYPE
+       TMPSUFFIX=SHARE NAME:SUFFIX
+       CALL CHECKNAME
+       IF DONAME="Y" THEN
+        DO
+         TMPTYPE="S"+SHARE:ID+" - "+FORMAT("99",SHARE NAME:TYPE)
+         CALL CHECKQUARTERBEACON
+         IF NEWERBEACON="N" THEN
+          DO
+           CALL CHECKALLSSNS
+           IF FNDSSN="N" THEN 
+            DO
+             IF NAME:TYPE<=1 THEN CALL USEOLDADDRESS
+             ELSE IF SHARE NAME:ADDRESSTYPE=0 AND SHARE NAME:STREET<>"" AND 
+                     SHARE NAME:CITY<>"" AND SHARE NAME:STATE<>"" AND SHARE NAME:ZIPCODE<>""  THEN 
+              DO
+               TMPSTREET=SHARE NAME:STREET
+               TMPEXTRAADDR=SHARE NAME:EXTRAADDRESS
+               TMPCITY=SHARE NAME:CITY
+               TMPSTATE=SHARE NAME:STATE
+               TMPZIP=SEGMENT(SHARE NAME:ZIPCODE,1,5)
+              END
+             ELSE CALL USEOLDADDRESS
+             TMPFIRST=SHARE NAME:FIRST
+             TMPMIDDLE=SHARE NAME:MIDDLE
+             TMPLAST=SHARE NAME:LAST
+             TMPLONGNAME=SHARE NAME:LONGNAME
+             TMPDOB=FORMAT("99",MONTH(SHARE NAME:BIRTHDATE))+FORMAT("99",DAY(SHARE NAME:BIRTHDATE))+FORMAT("9999",FULLYEAR(SHARE NAME:BIRTHDATE))
+             IF LENGTH(TMPSTREET)>=3 THEN 
+              DO
+               IF PARSED=TRUE THEN
+                DO
+                 CALL OUTPUTPARSEDDATA
+                END
+               IF PARSED=FALSE THEN
+                DO
+                 CALL OUTPUTUNPARSEDDATA
+                END 
+              [CALL OUTPUTDATA]
+              END 
+            END
+          END
+        END
+      END
+    END
+  END
+END
+
+TOTAL
+ COL=1 REPEATCHR("-",93)
+ NEWLINE
+ PRINT "Total Count: "
+ PRINT CNT
+ NEWLINE
+END
+   
+PROCEDURE GETBEACONS
+ FOR I=1 TO 5
+  DO
+   BSSN(I)=""
+   BDATE(I)='--/--/--'
+  END
+ FOR EACH TRACKING WITH TRACKING:TYPE=31
+  DO
+   BSSN(1)=TRACKING:USERCHAR1
+   BSSN(2)=TRACKING:USERCHAR2
+   BSSN(3)=TRACKING:USERCHAR3
+   BSSN(4)=TRACKING:USERCHAR4
+   BSSN(5)=TRACKING:USERCHAR5
+   BDATE(1)=TRACKING:USERDATE1
+   BDATE(2)=TRACKING:USERDATE2
+   BDATE(3)=TRACKING:USERDATE3
+   BDATE(4)=TRACKING:USERDATE4
+   BDATE(5)=TRACKING:USERDATE5
+  END
+END
+
+PROCEDURE CHECKQUARTERBEACON
+ NEWERBEACON="N"
+ TMPLASTBEACON='--/--/--'
+ IF BSSN(1)=TMPSSN      THEN TMPLASTBEACON=BDATE(1)
+ ELSE IF BSSN(2)=TMPSSN THEN TMPLASTBEACON=BDATE(2)
+ ELSE IF BSSN(3)=TMPSSN THEN TMPLASTBEACON=BDATE(3)
+ ELSE IF BSSN(4)=TMPSSN THEN TMPLASTBEACON=BDATE(4)
+ ELSE IF BSSN(5)=TMPSSN THEN TMPLASTBEACON=BDATE(5)
+ IF TMPLASTBEACON>LASTQUARTER THEN NEWERBEACON="Y"
+END
+
+PROCEDURE CHECKALLSSNS
+ FNDSSN="N"
+ AI=0
+ WHILE AI<=AL AND FNDSSN="N"
+  DO
+   IF ALLSSNS(AI)=TMPSSN THEN FNDSSN="Y"
+   AI=AI+1
+  END
+END
+
+PROCEDURE OUTPUTHEADER
+ DATASIZE=32 "FIRST_NAME"                  
+ DATASIZE=32 "MIDDLE_NAME" 
+ DATASIZE=32 "LAST_NAME" 
+ DATASIZE=32 "ADDRESS_LINE1"
+ DATASIZE=32 "ADDRESS_LINE1"
+ DATASIZE=23 "CITY" 
+ DATASIZE=02 "ST" 
+ DATASIZE=05 "ZIP" 
+ DATASIZE=09 "SSN"
+ DATASIZE=08 "DOB" 
+ DATASIZE=23 "FILLER"     
+ DATASIZE=02 CRNL
+END
+
+PROCEDURE OUTPUTPARSEDHEADER
+ DATASIZE=20 "First_Name"                  
+ DATASIZE=20 "Middle_Name" 
+ DATASIZE=32 "Last_Name" 
+ DATASIZE=04 "Name_Suffix"
+ DATASIZE=10 "Birth_Date"
+ DATASIZE=09 "Soc_Security_Num" 
+ DATASIZE=10 "Street_Number" 
+ DATASIZE=02 "Pre_Directional" 
+ DATASIZE=27 "Street_Name"
+ DATASIZE=02 "Post_Directional" 
+ DATASIZE=02 "Street_Type"     
+ DATASIZE=05 "Apartment_Unit_Number"
+ DATASIZE=28 "City_Name"
+ DATASIZE=02 "State"
+ DATASIZE=05 "Zip_Code"
+ DATASIZE=04 "Zip4_Code"
+ DATASIZE=50 "Filler"
+ DATASIZE=02 CRNL
+END
+
+PROCEDURE OUTPUTUNPARSEDHEADER
+ DATASIZE=72 "Full_Name"                  
+ DATASIZE=04 "Name_Suffix"
+ DATASIZE=10 "Birth_Date"
+ DATASIZE=09 "Soc_Security_Num" 
+ DATASIZE=48 "Unparsed_Addr_1" 
+ DATASIZE=28 "City_Name"
+ DATASIZE=02 "State"
+ DATASIZE=05 "Zip_Code"
+ DATASIZE=04 "Zip4_Code"
+ DATASIZE=50 "Filler"
+ DATASIZE=02 CRNL
+END
+
+PROCEDURE OUTPUTDATA
+ AL=AL+1
+ ALLSSNS(AL)=TMPSSN
+ DATASIZE=32 TMPFIRST                        [First Name]
+ DATASIZE=32 TMPMIDDLE                       [Last Name]
+ DATASIZE=32 TMPLAST                         [Last Name]
+ DATASIZE=32 TMPSTREET                       [Street]
+ DATASIZE=32 TMPEXTRAADDR                    [Extra Address]
+ DATASIZE=23 TMPCITY                         [City]
+ DATASIZE=02 TMPSTATE                        [State]
+ DATASIZE=05 TMPZIP                          [Zip Code]
+ DATASIZE=09 TMPSSN                          [SSN]
+ DATASIZE=08 TMPDOB                          [Birth Date]
+ DATASIZE=23 ""                              [FILLER]
+ DATASIZE=02 CRNL
+ COL=1 ACCOUNT:NUMBER
+ COL=12 SEGMENT(TMPFIRST,1,20)
+ COL=35 SEGMENT(TMPMIDDLE,1,10)
+ COL=47 SEGMENT(TMPLAST,1,20)
+ COL=69 SEGMENT(TMPSSN,1,9)
+ COL=81 FORMAT("99/99/99",TMPLASTBEACON)
+ COL=94 TMPTYPE
+ NEWLINE
+ CNT=CNT+1
+END
+
+PROCEDURE OUTPUTPARSEDDATA
+ AL=AL+1
+ ALLSSNS(AL)=TMPSSN
+ DATASIZE=20 TMPFIRST      [First Name]
+ DATASIZE=20 TMPMIDDLE     [Middle Name]
+ DATASIZE=32 TMPLAST       [Last Name]
+ DATASIZE=04 "Name_Suffix"
+ DATASIZE=10 TMPDOB        [Birth Date]		
+ DATASIZE=09 TMPSSN        [SSN]
+ DATASIZE=10 "Street_Number" 
+ DATASIZE=02 "Pre_Directional"  
+ DATASIZE=27 TMPSTREET     [Street]
+ DATASIZE=02 "Post_Directional" 
+ DATASIZE=02 "Street_Type" 
+ DATASIZE=05 TMPEXTRAADDR  [Extra Address]
+ DATASIZE=28 TMPCITY       [City]
+ DATASIZE=02 TMPSTATE      [State]
+ DATASIZE=05 TMPZIP        [Zip Code]
+ DATASIZE=04 "Zip4_Code"
+ DATASIZE=50 ""            [FILLER]
+ DATASIZE=02 CRNL 
+ COL=1 ACCOUNT:NUMBER
+ COL=12 SEGMENT(TMPFIRST,1,20)
+ COL=35 SEGMENT(TMPMIDDLE,1,10)
+ COL=47 SEGMENT(TMPLAST,1,20)
+ COL=69 SEGMENT(TMPSSN,1,9)
+ COL=81 FORMAT("99/99/99",TMPLASTBEACON)
+ COL=94 TMPTYPE
+ NEWLINE
+ CNT=CNT+1
+END
+
+PROCEDURE OUTPUTUNPARSEDDATA
+ AL=AL+1
+ ALLSSNS(AL)=TMPSSN 
+ DATASIZE=72 TMPLONGNAME                     [Full_Name]
+ DATASIZE=04 "Name_Suffix"
+ DATASIZE=10 TMPDOB                          [Birth Date]		
+ DATASIZE=09 TMPSSN                          [SSN]
+ DATASIZE=48 TMPEXTRAADDR + " " + TMPSTREET  [Unparsed_Addr_1]
+ DATASIZE=28 TMPCITY                         [City]
+ DATASIZE=02 TMPSTATE                        [State]
+ DATASIZE=05 TMPZIP                          [Zip Code]
+ DATASIZE=04 "Zip4_Code"
+ DATASIZE=50 ""                              [FILLER]
+ DATASIZE=02 CRNL 
+ COL=1 ACCOUNT:NUMBER
+ COL=12 SEGMENT(TMPFIRST,1,20)
+ COL=35 SEGMENT(TMPMIDDLE,1,10)
+ COL=47 SEGMENT(TMPLAST,1,20)
+ COL=69 SEGMENT(TMPSSN,1,9)
+ COL=81 FORMAT("99/99/99",TMPLASTBEACON)
+ COL=94 TMPTYPE
+ NEWLINE
+ CNT=CNT+1
+END
+
+PROCEDURE GETOLDADDRESS
+ OLDSTREET=""
+ OLDEXTRAADDR=""
+ OLDCITY=""
+ OLDSTATE=""
+ OLDZIP=""
+ FMSTREET=""
+ FMEXTRAADDR=""
+ FMCITY=""
+ FMSTATE=""
+ FMZIP=""
+ FOR EACH NAME WITH NAME:TYPE=0 AND NAME:ADDRESSTYPE=0 AND NAME:STREET<>"" AND 
+          NAME:CITY<>"" AND NAME:STATE<>"" AND NAME:ZIPCODE<>"" 
+  DO
+   OLDSTREET=NAME:STREET
+   OLDEXTRAADDR=NAME:EXTRAADDRESS
+   OLDCITY=NAME:CITY
+   OLDSTATE=NAME:STATE
+   OLDZIP=NAME:ZIPCODE
+  END
+ IF OLDSTREET="" THEN
+  DO
+   FOR EACH FMHISTORY WITH FMHISTORY:RECORDNAME="Name"
+    DO
+     IF FMEXTRAADDR="" AND FMHISTORY:FIELDNAME="Extra Address"   AND FMHISTORY:NEWCHARACTER=FMEXTRAADDR THEN FMEXTRAADDR=FMHISTORY:OLDCHARACTER
+     IF (FMSTREET=""   OR CHARACTERSEARCH(FMSTREET,"FORWARD")>0) AND FMHISTORY:FIELDNAME="Street" AND 
+         FMHISTORY:NEWCHARACTER=FMSTREET THEN FMSTREET=FMHISTORY:OLDCHARACTER
+     IF FMCITY=""      AND FMHISTORY:FIELDNAME="City"            AND FMHISTORY:NEWCHARACTER=FMCITY  THEN FMCITY=FMHISTORY:OLDCHARACTER
+     IF FMSTATE=""     AND FMHISTORY:FIELDNAME="State"           AND FMHISTORY:NEWCHARACTER=FMSTATE THEN FMSTATE=FMHISTORY:OLDCHARACTER
+     IF FMZIP=""       AND FMHISTORY:FIELDNAME="Zip Code"        AND FMHISTORY:NEWCHARACTER=FMZIP   THEN FMZIP=FMHISTORY:OLDCHARACTER
+    END
+    UNTIL FMSTREET<>"" AND CHARACTERSEARCH(FMSTREET,"FORWARD")=0 AND FMCITY<>"" AND FMSTATE<>"" AND FMZIP<>""
+   IF FMSTREET<>"" AND CHARACTERSEARCH(FMSTREET,"FORWARD")=0 AND FMCITY<>"" AND FMSTATE<>"" AND FMZIP<>"" THEN
+    DO
+     OLDSTREET=FMSTREET
+     OLDEXTRAADDR=FMEXTRAADDR
+     OLDCITY=FMCITY
+     OLDSTATE=FMSTATE
+     OLDZIP=FMZIP
+    END
+  END
+END
+
+PROCEDURE USEOLDADDRESS
+ TMPSTREET=OLDSTREET
+ TMPEXTRAADDR=OLDEXTRAADDR
+ TMPCITY=OLDCITY
+ TMPSTATE=OLDSTATE
+ TMPZIP=OLDZIP
+END
+
+PROCEDURE CHECKNAME
+ DONAME="N"
+ IF (TMPNAMETYPE=0  OR TMPNAMETYPE=1  OR TMPNAMETYPE=6  OR                     [Primary, Joint, Trustee]
+     TMPNAMETYPE=8  OR TMPNAMETYPE=9  OR TMPNAMETYPE=14 OR                     [POA, Signer, Rep Payee]
+     TMPNAMETYPE=16 OR TMPNAMETYPE=20 OR TMPNAMETYPE=21) AND                   [Guarantor, Co-Borrower, Co-Signer]
+     TMPSSNTYPE=0 AND LENGTH(TMPSSN)=9 AND                                     [Check for Individual and valid SSN]
+     TMPSSN<>"000000000" AND TMPSSN<>"111111111"  AND TMPSSN<>"222222222" AND  [Does not haf all same number]
+     TMPSSN<>"333333333" AND TMPSSN<>"444444444"  AND TMPSSN<>"555555555" AND
+     TMPSSN<>"666666666" AND TMPSSN<>"777777777"  AND TMPSSN<>"888888888" AND
+     TMPSSN<>"999999999" AND TMPSSN<>"123456789"  AND TMPSSN<>"987654321" THEN
+  DO
+   DONAME="Y"
+   IF TMPSUFFIX="I"                                   THEN TMPSUFFIX="01"      [Suffix conversion for Experian]
+   ELSE IF TMPSUFFIX="II"    OR NAME:SUFFIX="SECOND"  THEN TMPSUFFIX="02"
+   ELSE IF TMPSUFFIX="III"   OR NAME:SUFFIX="THIRD"   THEN TMPSUFFIX="03"
+   ELSE IF TMPSUFFIX="IIII"  OR NAME:SUFFIX="FOURTH"  THEN TMPSUFFIX="04"
+   ELSE IF TMPSUFFIX="V"     OR NAME:SUFFIX="FIFTH"   THEN TMPSUFFIX="05"
+   ELSE IF TMPSUFFIX="VI"                             THEN TMPSUFFIX="06"
+   ELSE IF TMPSUFFIX="VII"                            THEN TMPSUFFIX="07"
+   ELSE IF TMPSUFFIX="VIII"                           THEN TMPSUFFIX="08"
+   ELSE IF TMPSUFFIX="VIIII" OR NAME:SUFFIX="IX"      THEN TMPSUFFIX="09"
+   ELSE IF TMPSUFFIX="X"                              THEN TMPSUFFIX="10"
+   ELSE IF TMPSUFFIX="JR"    OR NAME:SUFFIX="JUNIOR"  THEN TMPSUFFIX="JR"
+   ELSE IF TMPSUFFIX="SR"    OR NAME:SUFFIX="SENIOR"  THEN TMPSUFFIX="SR"
+   ELSE TMPSUFFIX=""
+   IF TMPSUFFIX<>"" THEN TMPLAST=TMPLAST+" "+TMPSUFFIX
+  END
+END

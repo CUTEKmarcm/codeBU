@@ -1,0 +1,497 @@
+[
+****************************************************************************************
+*****  Copyright 2023 CUTEK. All rights reserved.                     rev 01-2023  *****
+*****                                                                              *****
+*****  This licensed source code may not be reproduced, displayed, modified or     *****
+*****  distributed without the express prior written permission of the copyright   *****
+*****  holder. As implemented with CUTEK products, code is licensed only for the   *****
+*****  license term of the agreement. For further information, contact             *****
+*****  sales@cutek.com                                                             *****
+****************************************************************************************
+
+ Client name:  Austin Telco
+ File name:    GH.TRANSUNION.QUEST.IMPORT
+ Created by:   CUTEK, Inc. - Marc Middleton
+ Created on:   JANUARY 2023
+ CUTEK Ticket: 32283
+ 
+ Description:
+ Copy of GH.EXPERIAN.QUEST.IMPORT for Vendor Change to TransUnion format(tbd).
+ 
+ Modified by:  
+ Modified on:  
+ Modification: 
+]
+TARGET = ACCOUNT
+
+DEFINE
+ TRUE      = 1
+ FALSE     = 0
+ G         = NUMBER
+ C         = NUMBER
+ Z         = NUMBER
+ F         = NUMBER
+ FIELDDATA = CHARACTER ARRAY(999) 
+ STAGE     = CHARACTER
+ CD        = NUMBER
+ CDONE     = NUMBER
+ QON       = NUMBER     
+ CNUMBER   = NUMBER
+ CDATA     = CHARACTER
+ CERROR    = CHARACTER
+ EOFOUND   = NUMBER
+ FILETYPE  = CHARACTER
+ FILENAME  = CHARACTER 
+
+ firstname0004          = CHARACTER
+ middlename0005         = CHARACTER
+ lastname0006           = CHARACTER
+ suffix0007             = CHARACTER
+ dateofbirth0008        = CHARACTER
+ ssn0009                = CHARACTER(9)
+ streetnumber0010       = CHARACTER
+ streetaddress0011      = CHARACTER
+ post0012               = CHARACTER
+ apt0013                = CHARACTER
+ city0014               = CHARACTER
+ state0015              = CHARACTER
+ zipcode0016            = CHARACTER
+ zipfour0017            = CHARACTER
+ filler0018             = CHARACTER
+ addrDiscrepancyFlg0019 = CHARACTER
+ permId                 = CHARACTER
+ pppclconsumerId        = CHARACTER
+ pppclsequenceNumber    = CHARACTER
+ bFinscr                = CHARACTER
+ bReasoncode1           = CHARACTER
+ bReasoncode2           = CHARACTER
+ bReasoncode3           = CHARACTER
+ bReasoncode4           = CHARACTER
+ bFacta                 = CHARACTER
+ bExclcode              = CHARACTER
+ creditAsOfDate         = CHARACTER
+ 
+ #INCLUDE "RD.OUTPUT.DEF"
+ OUTPUTCHANNEL1=NUMBER
+ ERRORTEXT=CHARACTER
+ ERRORTEXTIGNORE=CHARACTER  
+ ACCOUNTFOUND=NUMBER
+ CHARACTERERROR=NUMBER
+ LASTACCTNUMBER=CHARACTER(10)
+ HASTRACK31=NUMBER
+ TrackingLocator=NUMBER
+ MembersScore=NUMBER ARRAY(5)
+ ScoreRangeMax=NUMBER ARRAY(5)
+ ScoreRangeMin=NUMBER ARRAY(5)
+ SSN=CHARACTER(9) ARRAY(8)
+ MemName=CHARACTER(40) ARRAY(5)
+ DropCode=CHARACTER(40) ARRAY(5)
+ ReasonCodes=CHARACTER(40) ARRAY(5)
+ Time=NUMBER ARRAY(5)
+ BureauUsed=NUMBER ARRAY(5)
+ RptDate=DATE ARRAY(5)
+ USESLOT=NUMBER
+ MEMBERNAME=CHARACTER(40)
+ ALLREASONCODES=CHARACTER
+ YR=NUMBER
+ MO=NUMBER
+ DA=NUMBER
+ creditAsOfDateDate=DATE
+ STOP=NUMBER
+END 
+ 
+SETUP
+ FILETYPE="LETTER"
+ FILENAME="TUIMPORT"
+ FILEOPEN(FILETYPE,FILENAME,"READ",CNUMBER,CERROR)
+ IF CERROR <> "" THEN
+  DO
+   PRINT "Error Opening File: "
+   PRINT CERROR
+   NEWLINE
+   TERMINATE
+  END
+ OUTPUTOPEN(OUTPUTDEVREPORT,0,"TransUnion Tracking FM","FMREPORT",OUTPUTCHANNEL1,ERRORTEXT)
+ IF ERRORTEXT<>"" THEN CALL ERRORHANDLER  
+END 
+
+SELECT
+ NONE
+END
+
+PRINT TITLE="TransUnion Exceptions"
+ HEADER=""
+ WHILELIMIT = 100000000
+ WHILE EOFOUND = 0
+  DO
+   CALL GETCOMMADELIMITEDRECORD
+   IF EOFOUND = 0 THEN
+    DO
+     CALL PROCESSDATA
+     IF CHARACTERERROR=FALSE THEN
+      DO       
+       ACCOUNTFOUND=FALSE
+       FOR ACCOUNT WITH SSN ssn0009
+        DO   
+         ACCOUNTFOUND=TRUE
+         IF ACCOUNT:TYPE<>96 THEN [NON-MEMBER]
+          DO   
+           HASTRACK31=FALSE              
+           IF ACCOUNT:NUMBER<>LASTACCTNUMBER THEN
+            DO           
+             FOR EACH TRACKING WITH TRACKING:TYPE=31 AND (TRACKING:EXPIREDATE='--/--/--' OR TRACKING:EXPIREDATE>SYSTEMDATE)
+              DO
+               HASTRACK31=TRUE
+               CALL GETTRACKINGINFO
+               CALL UPDATETRACKING
+              END
+             IF HASTRACK31=FALSE THEN
+              DO
+               CALL CREATETRACKING
+              END  
+            END
+           LASTACCTNUMBER=ACCOUNT:NUMBER 
+          END
+        END
+       IF ACCOUNTFOUND=FALSE THEN
+        DO
+         COL=001 "SSN "+ssn0009+" NOT FOUND"
+         NEWLINE
+        END
+      END
+    END
+  END
+END
+
+PROCEDURE PROCESSDATA
+[FOR G=1 TO 6
+  DO
+   PRINT FIELDDATA(G)
+   NEWLINE
+  END]
+ CHARACTERERROR         = FALSE 
+ firstname0004          = FIELDDATA(01)
+ middlename0005         = FIELDDATA(02)
+ lastname0006           = FIELDDATA(03)
+ suffix0007             = FIELDDATA(04)
+ dateofbirth0008        = FIELDDATA(05)
+ ssn0009                = FIELDDATA(06)
+ streetnumber0010       = FIELDDATA(07)
+ streetaddress0011      = FIELDDATA(08)
+ post0012               = FIELDDATA(09)
+ apt0013                = FIELDDATA(10)
+ city0014               = FIELDDATA(11)
+ state0015              = FIELDDATA(12)
+ zipcode0016            = FIELDDATA(13)
+ zipfour0017            = FIELDDATA(14)
+ filler0018             = FIELDDATA(15)
+ addrDiscrepancyFlg0019 = FIELDDATA(16)
+ permId                 = FIELDDATA(17)
+ pppclconsumerId        = FIELDDATA(18)
+ pppclsequenceNumber    = FIELDDATA(19)
+ bFinscr                = FIELDDATA(20)
+ bReasoncode1           = FIELDDATA(21)
+ bReasoncode2           = FIELDDATA(22)
+ bReasoncode3           = FIELDDATA(23)
+ bReasoncode4           = FIELDDATA(24)
+ bFacta                 = FIELDDATA(25)
+ bExclcode              = FIELDDATA(26)
+ creditAsOfDate         = FIELDDATA(27)
+ 
+ FOR C=1 TO 9
+  DO
+   IF (SEGMENT(ssn0009,C,C) < CTRLCHR(48)) OR (SEGMENT(ssn0009,C,C) > CTRLCHR(57)) THEN
+    DO
+     CHARACTERERROR=TRUE
+    END
+  END 
+ IF CHARACTERERROR=TRUE THEN
+  DO
+   IF SSN0009 <> "customerI" THEN
+    DO
+     COL=001 "BAD SSN  :  "+ssn0009
+     NEWLINE
+    END
+  END 
+  
+ MEMBERNAME = SEGMENT(firstname0004 +" "+ middlename0005 +" "+ lastname0006 +" "+ suffix0007,1,40)
+ ALLREASONCODES = bReasoncode1
+ IF bReasoncode2 <> "" THEN
+  DO
+   ALLREASONCODES = ALLREASONCODES +","+ bReasoncode2
+  END
+ IF bReasoncode3 <> "" THEN
+  DO
+   ALLREASONCODES = ALLREASONCODES +","+ bReasoncode3
+  END
+ IF bReasoncode4 <> "" THEN
+  DO
+   ALLREASONCODES = ALLREASONCODES +","+ bReasoncode4
+  END    
+  
+ YR=VALUE(SEGMENT(creditAsOfDate,1,4))
+ MO=VALUE(SEGMENT(creditAsOfDate,6,7))
+ DA=VALUE(SEGMENT(creditAsOfDate,9,10))
+ creditAsOfDateDate = DATE(MO,DA,YR)
+END
+
+
+PROCEDURE GETCOMMADELIMITEDRECORD
+ FOR CD = 0 TO 999
+  DO
+   FIELDDATA(CD) = ""
+  END
+
+ CDONE = 0
+ CD = 0
+ WHILE CDONE = 0 AND EOFOUND = 0
+  DO
+   CALL READDATA
+   IF EOFOUND = 0 THEN
+    DO
+     IF CDATA = CTRLCHR(10) OR             [Newline]              [End of Record]
+        CDATA = CTRLCHR(12) OR             [Form Feed]
+        CDATA = CTRLCHR(13) THEN           [Carrage Return]
+      DO
+       IF CD > 0 THEN                      [Skip extra Line Feeds]
+        DO
+         CDONE = 1
+         CD = CD + 1            
+         FIELDDATA(CD) = STAGE      
+         STAGE = ""
+        END                 
+      END
+     ELSE IF CDATA = "," AND               [End of Field]
+               QON = 0 THEN                [Not inside Quotes] 
+      DO
+       CD = CD + 1            
+       FIELDDATA(CD) = STAGE
+       STAGE = ""
+      END
+     ELSE IF CDATA = CTRLCHR(34) THEN      [Quote]
+      DO
+       IF QON = 0 THEN
+        QON = 1
+       ELSE
+        QON = 0
+      END 
+     ELSE
+      DO
+       STAGE = STAGE + CDATA
+      END
+    END
+  END
+END
+
+PROCEDURE READDATA
+ FILEREAD(CNUMBER,1,CDATA,CERROR)
+ IF CERROR = "EOF" THEN
+  DO
+   EOFOUND = 1
+   FILECLOSE(CNUMBER,CERROR)
+  END
+ ELSE IF CERROR <> "" THEN
+  DO
+   PRINT "Error Reading Comma Delimited File = "+CERROR
+   NEWLINE
+   TERMINATE
+  END
+END
+
+PROCEDURE UPDATETRACKING
+ USESLOT=0
+ STOP=FALSE
+ FOR F=1 TO 5 
+  DO
+   IF SSN(F)="" AND STOP=FALSE THEN
+    DO
+     USESLOT=F
+     STOP=TRUE
+    END    
+  END
+ IF USESLOT=0 THEN
+  DO
+   USESLOT=1
+  END   
+ IF USESLOT>0 THEN
+  DO
+   OUTPUTSWITCH(OUTPUTCHANNEL1,ERRORTEXT)
+   HEADER=""   
+   COL=001 "ACCOUNT "+ACCOUNT:NUMBER+" MODIFY TRACKING LOC "
+   PRINT   TrackingLocator
+   NEWLINE
+   COL=003 "CHANGE USERNUMBER"+FORMAT("9",USESLOT)+" FROM"
+   COL=049 MembersScore(USESLOT)
+   COL=090 "TO"
+   COL=093 bFinscr
+   NEWLINE    
+   COL=003 "CHANGE USERCHAR"+FORMAT("9",USESLOT)+" FROM"
+   COL=049 SSN(USESLOT)
+   COL=090 "TO"
+   COL=093 ssn0009
+   NEWLINE       
+   IF USESLOT+5 > 9 THEN
+    COL=003 "CHANGE USERCHAR"+FORMAT("99",USESLOT+5)+" FROM"
+   ELSE
+    COL=003 "CHANGE USERCHAR"+FORMAT("9",USESLOT+5)+" FROM" 
+   COL=049 MemName(USESLOT)
+   COL=090 "TO"
+   COL=093 MEMBERNAME
+   NEWLINE   
+   COL=003 "CHANGE USERCODE"+FORMAT("9",USESLOT)+" FROM"
+   COL=049 FORMAT("9999",Time(USESLOT)) 
+   COL=090 "TO"
+   COL=093 FORMAT("9999",SYSACTUALTIME)
+   NEWLINE    
+   IF USESLOT+5 > 9 THEN
+    COL=003 "CHANGE USERCODE"+FORMAT("99",USESLOT+5)+" FROM"
+   ELSE
+    COL=003 "CHANGE USERCHAR"+FORMAT("9",USESLOT+5)+" FROM" 
+   COL=049 BureauUsed(USESLOT)
+   COL=090 "TO"
+   COL=093 "3"
+   NEWLINE       
+   COL=003 "CHANGE USERDATE"+FORMAT("9",USESLOT)+" FROM"
+   COL=049 RptDate(USESLOT)
+   COL=090 "TO"
+   COL=093 LEFT creditAsOfDateDate
+   NEWLINE  
+   COL=003 "CHANGE USERNUMBER"+FORMAT("99",USESLOT+10)+" FROM"
+   COL=049 ScoreRangeMax(USESLOT)
+   COL=090 "TO"
+   COL=093 "850"
+   NEWLINE       
+   COL=003 "CHANGE USERNUMBER"+FORMAT("99",USESLOT+15)+" FROM"
+   COL=049 ScoreRangeMin(USESLOT)
+   COL=090 "TO"
+   COL=093 "300"
+   NEWLINE      
+   COL=003 "CHANGE USERCHAR"+FORMAT("99",USESLOT+10)+" FROM"
+   COL=049 DropCode(USESLOT)
+   COL=090 "TO"
+   COL=093 bExclcode
+   NEWLINE       
+   COL=003 "CHANGE USERCHAR"+FORMAT("99",USESLOT+15)+" FROM"
+   COL=049 ReasonCodes(USESLOT)
+   COL=090 "TO"
+   COL=093 ALLREASONCODES
+   NEWLINE        
+   OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)
+  END
+END
+
+PROCEDURE GETTRACKINGINFO
+ TrackingLocator=0
+ FOR Z=1 TO 5
+  DO
+   MembersScore(Z)=0
+   ScoreRangeMax(Z)=0
+   ScoreRangeMin(Z)=0
+   SSN(Z)=""
+   MemName(Z)=""
+   DropCode(Z)=""
+   ReasonCodes(Z)=""
+   Time(Z)=0
+   BureauUsed(Z)=0
+   RptDate(Z)='--/--/--'
+  END
+ TrackingLocator = TRACKING:LOCATOR
+ MembersScore(1) = TRACKING:USERNUMBER1
+ MembersScore(2) = TRACKING:USERNUMBER2
+ MembersScore(3) = TRACKING:USERNUMBER3
+ MembersScore(4) = TRACKING:USERNUMBER4
+ MembersScore(5) = TRACKING:USERNUMBER5
+ ScoreRangeMax(1) = TRACKING:USERNUMBER11
+ ScoreRangeMax(2) = TRACKING:USERNUMBER12
+ ScoreRangeMax(3) = TRACKING:USERNUMBER13
+ ScoreRangeMax(4) = TRACKING:USERNUMBER14
+ ScoreRangeMax(5) = TRACKING:USERNUMBER15
+ ScoreRangeMin(1) = TRACKING:USERNUMBER16
+ ScoreRangeMin(2) = TRACKING:USERNUMBER17
+ ScoreRangeMin(3) = TRACKING:USERNUMBER18
+ ScoreRangeMin(4) = TRACKING:USERNUMBER19
+ ScoreRangeMin(5) = TRACKING:USERNUMBER20
+ SSN(1) = TRACKING:USERCHAR1
+ SSN(2) = TRACKING:USERCHAR2
+ SSN(3) = TRACKING:USERCHAR3
+ SSN(4) = TRACKING:USERCHAR4
+ SSN(5) = TRACKING:USERCHAR5
+ MemName(1) = TRACKING:USERCHAR6
+ MemName(2) = TRACKING:USERCHAR7
+ MemName(3) = TRACKING:USERCHAR8
+ MemName(4) = TRACKING:USERCHAR9
+ MemName(5) = TRACKING:USERCHAR10
+ DropCode(1) = TRACKING:USERCHAR11
+ DropCode(2) = TRACKING:USERCHAR12
+ DropCode(3) = TRACKING:USERCHAR13
+ DropCode(4) = TRACKING:USERCHAR14
+ DropCode(5) = TRACKING:USERCHAR15
+ ReasonCodes(1) = TRACKING:USERCHAR16
+ ReasonCodes(2) = TRACKING:USERCHAR17
+ ReasonCodes(3) = TRACKING:USERCHAR18
+ ReasonCodes(4) = TRACKING:USERCHAR19
+ ReasonCodes(5) = TRACKING:USERCHAR20
+ Time(1) = TRACKING:USERCODE1
+ Time(2) = TRACKING:USERCODE2
+ Time(3) = TRACKING:USERCODE3
+ Time(4) = TRACKING:USERCODE4
+ Time(5) = TRACKING:USERCODE5
+ BureauUsed(1) = TRACKING:USERCODE6
+ BureauUsed(2) = TRACKING:USERCODE7
+ BureauUsed(3) = TRACKING:USERCODE8
+ BureauUsed(4) = TRACKING:USERCODE9
+ BureauUsed(5) = TRACKING:USERCODE10
+ RptDate(1) = TRACKING:USERDATE1
+ RptDate(2) = TRACKING:USERDATE2
+ RptDate(3) = TRACKING:USERDATE3
+ RptDate(4) = TRACKING:USERDATE4
+ RptDate(5) = TRACKING:USERDATE5  
+END
+
+PROCEDURE CREATETRACKING
+ OUTPUTSWITCH(OUTPUTCHANNEL1,ERRORTEXT)
+ HEADER=""
+ COL=01 "ACCOUNT "+ACCOUNT:NUMBER+" CREATE TRACKING LOC AFTERLAST"
+ NEWLINE
+ COL=03 "SET TYPE TO"
+ COL=49 "31"
+ NEWLINE
+ COL=03 "SET USERNUMBER1 TO"
+ COL=49 bFinscr
+ NEWLINE
+ COL=03 "SET USERCHAR1 TO"
+ COL=49 ssn0009
+ NEWLINE
+ COL=03 "SET USERCHAR6 TO"
+ COL=49 MEMBERNAME
+ NEWLINE 
+ COL=03 "SET USERCODE1 TO"
+ COL=49 FORMAT("9999",SYSACTUALTIME)
+ NEWLINE  
+ COL=03 "SET USERCODE6 TO"
+ COL=49 "3"
+ NEWLINE
+ COL=03 "SET USERDATE1 TO"
+ COL=49 LEfT creditAsOfDateDate
+ NEWLINE
+ COL=03 "SET USERNUMBER11 TO"
+ COL=49 "850"
+ NEWLINE
+ COL=03 "SET USERNUMBER16 TO"
+ COL=49 "300"
+ NEWLINE
+ COL=03 "SET USERCHAR11 TO"
+ COL=49 bExclcode
+ NEWLINE
+ COL=03 "SET USERCHAR16 TO"
+ COL=49 ALLREASONCODES
+ NEWLINE
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)
+END 
+
+PROCEDURE ERRORHANDLER
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXTIGNORE)
+ PRINT "Error: "+ERRORTEXT
+ NEWLINE
+ TERMINATE
+END
