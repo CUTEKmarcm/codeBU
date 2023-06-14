@@ -1,0 +1,34 @@
+MC Account Number 			USERCHAR1 		
+DDA Account Number 			USERCHAR2 		
+Description 				USERCHAR3 		
+Loan Officer 				USERCHAR4 		
+Repayment Code 				USERCHAR5   >>>   SWITCH WITH USERCODE3 		
+Property Street Address 	USERCHAR6 		
+Property City Zip 			USERCHAR7 	
+
+Info Last Updated Time 		USERCODE1 		
+Statement Group 			USERCODE2 		
+Loan Purpose 				USERCODE3   >>>   SWITCH WITH USERCHAR5 		
+Loan Term 					USERCODE4 		
+Loan Type 					USERCODE5 
+
+Principal Balance 			USERAMOUNT1 	
+Escrow Balance 				USERAMOUNT2 	
+P&I Payment 				USERAMOUNT3 	
+Escrow Payment Total 		USERAMOUNT4 	
+Late Fees Due 				USERAMOUNT5 	
+Total Amount Due 			USERAMOUNT6 	
+New P&I Payment Amount 		USERAMOUNT7 	
+Loan Amount 				USERAMOUNT8 	
+Curtailment 				USERAMOUNT9 				
+		
+Interest Adjustment Date 	USERDATE1 		
+Next Payment Due Date 		USERDATE2 		
+P&I Adjustment Date 		USERDATE3 		
+Info Last Updated Date 		USERDATE4 		
+Statement Cutoff Date 		USERDATE5 		
+Date of Loan 				USERDATE6 		
+Statement Prev Date 		USERDATE7 		
+		
+Interest Rate 				USERRATE1 		
+Loan to Value 				USERRATE2 

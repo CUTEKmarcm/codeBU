@@ -1,0 +1,71 @@
+00  No Adverse Factor
+01  Amount owed on accounts is too high
+02  Level of delinquency on accounts
+03  Proportion of loan balances to loan amounts is too high
+04  Lack of recent installment loan information
+05  Too many accounts with balances
+06  Too many consumer finance company accounts
+07  Account payment history is too new to rate
+08  Too many inquiries last 12 months
+09  Too many accounts recently opened
+10  Proportion of balances to credit limits on bank/national revolving or other revolving accounts is too high
+11  Amount owed on revolving accounts is too high
+12  Length of time revolving accounts have been established
+13  Time since delinquency is too recent or unknown
+14  Length of time accounts have been established
+15  Lack of recent bank/national revolving information
+16  Lack of recent revolving account information
+17  No recent non-mortgage balance information
+18  Number of accounts with delinquency
+19  Date of last inquiry too recent
+20  Time since derogatory public record or collection is too short
+21  Amount past due on accounts
+22T Serious delinquency, derogatory public record or collection filed
+23  Number of bank or national revolving accounts with balances
+24  No recent revolving balances
+25  Length of time installment loans have been established
+26  Number of bank/national revolving or other revolving accounts
+27  Too few accounts currently paid as agreed
+28  Number of established accounts
+29  No recent bank/national revolving balances
+30  Time since most recent account opening is too short
+31  Amount owed on delinquent accounts
+36  Payments due on accounts
+38  Serious delinquency, and public record or collection filed
+39  Serious delinquency
+40  Derogatory public record or collection filed
+50  Lack of recent retail account information
+51  Number of active retail accounts
+52  Number of active bank revolving or national revolving accounts
+53  Lack of recent consumer finance account information
+54  Number of recently opened consumer finance company accounts
+55  Number of accounts with delinquency
+56  Amount owed on retail accounts
+57  Time since most recent retail account established
+58  Length of time accounts have been established
+59  Lack of recent bank revolving account information
+60  No recent bank revolving or national revolving balances
+61  Proportion of balances to credit limits on bank revolving or other revolving accounts
+62  Lack of recent installment loan information
+63  Proportion of loan balances to loan amounts
+64  Lack of recent revolving account information
+65  No recent revolving balances
+66  Amount owed on bank revolving or national revolving accounts
+67  Amount of bankcard credit extended
+68  Monthly payment due on accounts
+69  Amount owed on revolving accounts
+70  Level of delinquency on accounts
+71  Lack of prior revenue based on payment pattern history
+74  Number of open installment loans
+80  Too many recently opened bank revolving or national revolving accounts
+81  Frequency of delinquency
+82  No mortgage loans reported
+83  Proportion of revolving balances to total balances is too high
+##  Amount owed on derogatory public record items
+85  Too few active accounts
+86  Time since most recent revolving account established
+87  Amount of credit available on revolving accounts
+88  Number of revolving accounts with balances higher than limits
+97  Lack of recent auto loan information
+98  Length of time consumer finance company loans have been established
+99  Lack of recent consumer finance company account information

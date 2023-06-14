@@ -1,0 +1,35 @@
+01  Amount owed on accounts is too high
+02  Level of delinquency on accounts
+04  Too many bank or national revolving accounts
+05  Too many accounts with balances
+06  Too many consumer finance company accounts
+07  Account payment history is too new to rate
+08  Too many inquires last 12 months
+09  Too many accounts recently opened
+10  Proportion of balance to credit limits is too high on bank revolving and other revolving accounts
+11  Amount owed on revolving accounts is too high
+12  Length of time revolving accounts have been established
+13  Time since delinquency too recent or unknown
+14  Length of time accts have been established
+15  Lack of recent bank revolving information
+16  Lack of recent revolving account information
+17  No recent non-morgage balance information
+18  Number of accounts with delinquency
+19  Too few accounts currently paid as agreed
+20  Time since derogatory public record or collection too short
+21  Amount past due of accounts
+22  Serious delinquency, derogatory public record or collection
+23  Number of bank or national revolving accounts with balances
+24  No recent revolving balances
+28  Number of established accounts
+30  Time since most recent account opening is too short
+31  Too few accounts with recent payment information
+32  Lack of recent installment loan information
+32  Lack of recent installment loan information 
+33  Proportion of loan balances is too high
+33  Proportion of loan balances to loan amounts is too high
+34  Amount owed on delinquent accounts
+38  Serious delinquency and public record or collection filed
+39  Serious delinquency
+40  Derogatory public record or collection filed
+Y   Number of inquiries adversely affected the score but the impact was not significant

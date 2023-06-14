@@ -1,0 +1,34 @@
+MC Account Number:          USERCHAR1		Loan_ID
+DDA Account Number:         USERCHAR2		Account_ID
+Description:                USERCHAR3		Collateral_Code_Description
+Loan Officer:               USERCHAR4       Loan_Officer
+Repayment Code:             USERCHAR5       Payment_Frequency   >>>   SWITCH WITH USERCODE3
+Property Street Address:    USERCHAR6       Collateral_Address
+Property City Zip:          USERCHAR7       Collateral_City, Collateral_State  Collateral_Zip_Code
+
+Info Last Updated Time:     NUMBER1         SYSACTUALTIME
+Statement Group:            NUMBER2         STMTCODE
+Loan Purpose:               USERCODE3       Purpose_Code        >>>   SWITCH WITH USERCHAR5
+Loan Term:                  NUMBER4         Term
+Loan Type:                  NUMBER7         Type_Code
+											
+Principal Balance:          AMOUNT1         Balance
+Escrow Balance:             AMOUNT2         <none>
+P&I Payment:                AMOUNT3         Minimum_Payment
+Escrow Payment Total:       AMOUNT4         <none>
+Late Fees Due:              AMOUNT5         Other_Fees
+Total Amount Due:           AMOUNT6         Minimum_Payment
+New P&I Payment Amount:     AMOUNT7         Minimum_Payment
+Loan Amount:                AMOUNT8         Original_Balance
+Curtailment:                AMOUNT9         <none>										
+											
+Interest Adjustment Date:   DATE1           Next_ARM_Interest_Change_Date
+Next Payment Due Date:      DATE2           Pmt Due Date
+P&I Adjustment Date:        DATE3           Risk_Rating_Date
+Info Last Updated Date:     DATE4           SYSTEMDATE
+Statement Cutoff Date:      DATE5           Calculated
+Date of Loan:               DATE6           Origination_Date
+Statement Prev Date:        DATE7           Calculated
+											
+Interest Rate:              RATE1           Current_Annual_Interest_Rate
+Loan to Value:              RATE2           Collateral_Value/Balance

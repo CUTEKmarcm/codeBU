@@ -1,0 +1,1027 @@
+[marcm.MFM.014]
+TARGET = ACCOUNT
+
+DEFINE
+ DETAILS   = 0
+ MFMTRACK  = 90 
+ MFMWARN   = 259
+ TOPCOL    = 122
+ G         = NUMBER
+ FIELDDATA = CHARACTER ARRAY(999) 
+ STAGE     = CHARACTER
+ CD        = NUMBER
+ CDONE     = NUMBER
+ QON       = NUMBER     
+ CNUMBER   = NUMBER
+ CDATA     = CHARACTER
+ CERROR    = CHARACTER
+ EOFOUND   = NUMBER
+ FILETYPE  = CHARACTER
+ FILENAME  = CHARACTER
+
+ LoanBalance                         = CHARACTER
+ LoanID                              = CHARACTER
+ OriginalBalance                     = CHARACTER
+ OriginationDate                     = CHARACTER
+ OriginationDateDATE                 = DATE
+ STATUS                              = CHARACTER
+ TypeCode                            = CHARACTER
+ AutoMake                            = CHARACTER
+ AutoModel                           = CHARACTER
+ AutoVIN                             = CHARACTER
+ AutoYear                            = CHARACTER
+ BorrowerCreditScore                 = CHARACTER
+ BorrowerCreditScoreDate             = CHARACTER
+ BorrowerIDNumber                    = CHARACTER
+ BorrowerOriginalCreditScore         = CHARACTER
+ BorrowerID                          = CHARACTER
+ ChargeoffBalance                    = CHARACTER
+ ChargeoffDate                       = CHARACTER
+ ClosedDate                          = CHARACTER
+ CollateralAddress                   = CHARACTER
+ CollateralCity                      = CHARACTER
+ CollateralState                     = CHARACTER
+ CollateralZipCode                   = CHARACTER
+ CreditLimit                         = CHARACTER
+ PmtDueDate                          = CHARACTER
+ PmtDueDateDATE                      = DATE
+ DaysDelinquent                      = CHARACTER
+ GrossChargeoffBalance               = CHARACTER
+ GrossChargeoffDate                  = CHARACTER
+ OriginalCollateralValue             = CHARACTER
+ OriginalLoanTypeCodeChargedOffLoans = CHARACTER
+ PartialChargeOffIndicator           = CHARACTER
+ ParticipationPercent                = CHARACTER
+ CurrentAnnualInterestRate           = CHARACTER
+ RecoveryBalance                     = CHARACTER
+ RecoveryDate                        = CHARACTER
+ RiskRating                          = CHARACTER
+ RiskRatingDate                      = CHARACTER
+ RiskRatingDateDATE                  = DATE
+ SeniorBalance                       = CHARACTER
+ SeniorOriginalBalance               = CHARACTER
+ SoldIndicator                       = CHARACTER
+ LoanTerm                            = CHARACTER
+ AccountID                           = CHARACTER
+ AutoDealer                          = CHARACTER
+ BorrowerAddress                     = CHARACTER
+ BorrowerBirthDate                   = CHARACTER
+ BorrowerCity                        = CHARACTER
+ BorrowerDebttoIncomeRatio           = CHARACTER
+ BorrowerDebttoIncomeRatioDate       = CHARACTER
+ BorrowerFirstName                   = CHARACTER
+ BorrowerLastName                    = CHARACTER
+ BorrowerState                       = CHARACTER
+ BorrowerZipCode                     = CHARACTER
+ LoanBranch                          = CHARACTER
+ ChargeoffReversal                   = CHARACTER
+ ChargeoffReversalDate               = CHARACTER
+ ChargeoffTransactionID              = CHARACTER
+ CollateralCode                      = CHARACTER
+ CollateralCodeDescription           = CHARACTER
+ DealerFees                          = CHARACTER
+ LienPosition                        = CHARACTER
+ LineofCreditDrawExpirationDate      = CHARACTER
+ LoanOfficer                         = CHARACTER
+ MaturityDate                        = CHARACTER
+ MonthlyPandI                        = CHARACTER
+ OriginalCreditLimit                 = CHARACTER
+ OriginalRate                        = CHARACTER
+ PaymentFrequency                    = CHARACTER
+ RateType                            = CHARACTER
+ RecoveryReversal                    = CHARACTER
+ RecoveryReversalDate                = CHARACTER
+ TDRIndicator                        = CHARACTER
+ Underwriter                         = CHARACTER
+ Delinquent120daysCounter            = CHARACTER
+ Delinquent30daysDelinquentCounter   = CHARACTER
+ Delinquent60daysDelinquentCounter   = CHARACTER
+ Delinquent90daysDelinquentCounter   = CHARACTER
+ AmortizationPeriod                  = CHARACTER
+ BalloonIndicator                    = CHARACTER
+ BalloonPayment                      = CHARACTER
+ BalloonPaymentDate                  = CHARACTER
+ BorrowerBankruptcyScore             = CHARACTER
+ BorrowerBankruptcyScoreDate         = CHARACTER
+ BorrowerCounty                      = CHARACTER
+ BorrowerGender                      = CHARACTER
+ BorrowerMiddleName                  = CHARACTER
+ BorrowerRace                        = CHARACTER
+ BuyRate                             = CHARACTER
+ CollateralCounty                    = CHARACTER
+ CollateralValueDate                 = CHARACTER
+ CollateralValue                     = CHARACTER
+ DebtServiceCoverageRatio            = CHARACTER
+ DebtServiceCoverageRatioDate        = CHARACTER
+ InterestOnlyIndicator               = CHARACTER
+ JuniorBalance                       = CHARACTER
+ JuniorOriginalBalance               = CHARACTER
+ LOCPaymentsCalendar                 = CHARACTER
+ LOCPaymentsStatements               = CHARACTER
+ LOCPurchasesCalendar                = CHARACTER
+ LOCPurchasesStatement               = CHARACTER
+ LOCStatementDate                    = CHARACTER
+ LOCStatementDateBalance             = CHARACTER
+ NAICSCode                           = CHARACTER
+ NetOperatingIncome                  = CHARACTER
+ OtherFees                           = CHARACTER
+ PotentialGrossIncome                = CHARACTER
+ PurposeCode                         = CHARACTER
+ VacancyRate                         = CHARACTER
+ DelinqencyTable                     = CHARACTER
+ ImpairmentAmount                    = CHARACTER
+ MinimumPayment                      = CHARACTER
+ CustomField1                        = CHARACTER
+ CustomField2                        = CHARACTER
+ CustomField3                        = CHARACTER
+ CustomField4                        = CHARACTER
+ CustomField5                        = CHARACTER
+ InvBankCode                         = CHARACTER
+ InvCode                             = CHARACTER
+ InvGroupCode                        = CHARACTER
+ NextARMInterestChangeDate           = CHARACTER
+ NextARMInterestChangeDateDATE       = DATE
+ CoborrowerLast                      = CHARACTER
+ CoborrowerFirst                     = CHARACTER
+ CoborrowerSSN                       = CHARACTER
+ LastPaymentPostedDate               = CHARACTER
+ 
+ ACCTFOUND=NUMBER
+ ACCTNO=CHARACTER
+ TRAXLOC=CHARACTER(4)
+ #INCLUDE "RD.OUTPUT.DEF"
+ OUTPUTCHANNEL1=NUMBER
+ OUTPUTCHANNEL2=NUMBER
+ ERRORTEXT=CHARACTER
+ ERRORTEXTIGNORE=CHARACTER  
+ EXCEPTIONREASON=CHARACTER
+ TRAXLOCNUMBER=NUMBER
+ RPTDATE=DATE
+ QTYSTMTCODE=NUMBER
+ FOUNDREGE=CHARACTER(1)
+ STMTCODE=NUMBER
+ ACCTCORRDATE=DATE
+ YR=NUMBER
+ MO=NUMBER
+ DA=NUMBER
+  
+ TRACKINGEXPIREDATE=DATE 
+ TRACKINGUSERCHAR1=CHARACTER
+ TRACKINGUSERCHAR2=CHARACTER
+ TRACKINGUSERCHAR3=CHARACTER
+ TRACKINGUSERCHAR4=CHARACTER
+ TRACKINGUSERCHAR5=CHARACTER
+ TRACKINGUSERCHAR6=CHARACTER
+ TRACKINGUSERCHAR7=CHARACTER 
+ TRACKINGUSERCODE1=NUMBER
+ TRACKINGUSERCODE2=NUMBER
+ TRACKINGUSERCODE3=NUMBER
+ TRACKINGUSERCODE4=NUMBER
+ TRACKINGUSERCODE5=NUMBER 
+ TRACKINGUSERAMOUNT1=MONEY
+ TRACKINGUSERAMOUNT3=MONEY
+ TRACKINGUSERAMOUNT5=MONEY
+ TRACKINGUSERAMOUNT6=MONEY
+ TRACKINGUSERAMOUNT7=MONEY
+ TRACKINGUSERAMOUNT8=MONEY 
+ TRACKINGUSERDATE1=DATE
+ TRACKINGUSERDATE2=DATE
+ TRACKINGUSERDATE3=DATE
+ TRACKINGUSERDATE4=DATE
+ TRACKINGUSERDATE5=DATE
+ TRACKINGUSERDATE6=DATE
+ TRACKINGUSERDATE7=DATE 
+ TRACKINGUSERRATE1=RATE
+ TRACKINGUSERRATE2=RATE 
+ 
+ INTRATE=RATE
+ LTV=RATE
+ CONTINUE=NUMBER
+END 
+ 
+SETUP
+ RPTDATE=DATEREAD("CU Members Report Date") [USUALLY THE 22 OF EACH MONTH]
+ [FIXME:]RPTDATE='11/22/2022'
+ 
+ IF MONTH(SYSTEMDATE)=3 OR 
+    MONTH(SYSTEMDATE)=6 OR 
+    MONTH(SYSTEMDATE)=9 OR 
+    MONTH(SYSTEMDATE)=12 THEN 
+  QTYSTMTCODE=3
+ ELSE 
+  QTYSTMTCODE=61 
+ 
+ FILETYPE="LETTER"
+ FILENAME="MFM.TEXT.csv"
+ FILEOPEN(FILETYPE,FILENAME,"READ",CNUMBER,CERROR)
+ IF CERROR <> "" THEN
+  DO
+   PRINT "Error Opening File: "
+   PRINT CERROR
+   NEWLINE
+   TERMINATE
+  END
+ OUTPUTOPEN(OUTPUTDEVREPORT,0,"MFM.TRACKING.FM","ACCOUNTRPT",OUTPUTCHANNEL1,ERRORTEXT)
+ IF ERRORTEXT<>"" THEN CALL ERRORHANDLER
+ OUTPUTOPEN(OUTPUTDEVREPORT,0,"Member's First Exceptions","ACCOUNTRPT",OUTPUTCHANNEL2,ERRORTEXT)
+ IF ERRORTEXT<>"" THEN CALL ERRORHANDLER   
+END 
+
+SELECT
+ NONE
+END
+
+PRINT TITLE="Member's First Mortgage" REPORTCATEGORY="ACCOUNTRPT"
+ HEADERS
+  COL=001 "File SSN"
+  COL=013 "Name"
+  COL=033 "Account"
+  COL=050 RIGHT "loc"
+  NEWLINE
+  COL=001 REPEATCHR("=",50)
+ END
+ WHILELIMIT = 100000000
+ WHILE EOFOUND = 0
+  DO
+   CALL GETCOMMADELIMITEDRECORD
+   IF EOFOUND = 0 THEN
+    DO
+     CALL PROCESSDATA
+     IF BorrowerIDNumber<>"Borrower_ID_Number" THEN
+      DO           
+       TRAXLOC=""
+       TRAXLOCNUMBER=0      
+       ACCTFOUND=0
+       EXCEPTIONREASON=""
+       COL=001 BorrowerIDNumber
+       FOR ACCOUNT WITH SSN BorrowerIDNumber
+        DO     
+         CONTINUE=0
+         FOR EACH NAME WITH NAME:TYPE=0
+          DO
+           IF NAME:SSN = BorrowerIDNumber THEN
+            DO
+             CONTINUE=1
+            END
+          END            
+         IF CONTINUE=1 THEN
+          DO                  
+           FOUNDREGE="N"
+           STMTCODE=QTYSTMTCODE
+           FOR EACH SHARE WITH SHARE:CLOSEDATE='--/--/--' AND SHARE:CHARGEOFFDATE='--/--/--'
+            DO
+             IF SHARE:STATEMENTGROUP=1 THEN STMTCODE=1
+             IF SHARE TRANSACTION:REGECODE=1 THEN FOUNDREGE="Y"
+            END
+           FOR EACH LOAN WITH LOAN:CLOSEDATE='--/--/--' AND LOAN:CHARGEOFFDATE='--/--/--'
+            DO
+             IF LOAN:STATEMENTGROUP=1 THEN STMTCODE=1
+             IF LOAN TRANSACTION:REGECODE=1 THEN FOUNDREGE="Y"
+            END 
+           IF FOUNDREGE="Y" AND STMTCODE=61 THEN [CHANGES STATEMENT MAIL CODE AS NEEDED]
+            DO
+             IF MONTH(SYSTEMDATE)=3 OR 
+                MONTH(SYSTEMDATE)=6 OR 
+                MONTH(SYSTEMDATE)=9 OR 
+                MONTH(SYSTEMDATE)=12 THEN 
+              STMTCODE=3
+             ELSE 
+              STMTCODE=1
+            END         
+           FOR EACH TRACKING WITH TRACKING:EXPIREDATE='--/--/--' AND TRACKING:TYPE=MFMTRACK 
+            DO
+             [TODO:ENTER ALL TRAX FIELDS FOR LATER MODIFICATION]
+             TRAXLOC=FORMAT("9999",TRACKING:LOCATOR)
+             TRAXLOCNUMBER=TRACKING:LOCATOR
+             
+             TRACKINGEXPIREDATE=TRACKING:EXPIREDATE
+             
+             TRACKINGUSERCHAR1=TRACKING:USERCHAR1
+             TRACKINGUSERCHAR2=TRACKING:USERCHAR2
+             TRACKINGUSERCHAR3=TRACKING:USERCHAR3
+             TRACKINGUSERCHAR4=TRACKING:USERCHAR4
+             TRACKINGUSERCHAR5=TRACKING:USERCHAR5
+             TRACKINGUSERCHAR6=TRACKING:USERCHAR6
+             TRACKINGUSERCHAR7=TRACKING:USERCHAR7
+             
+             TRACKINGUSERCODE1=TRACKING:USERCODE1
+             TRACKINGUSERCODE2=TRACKING:USERCODE2
+             TRACKINGUSERCODE3=TRACKING:USERCODE3
+             TRACKINGUSERCODE4=TRACKING:USERCODE4
+             TRACKINGUSERCODE5=TRACKING:USERCODE5
+             
+             TRACKINGUSERAMOUNT1=TRACKING:USERAMOUNT1
+             TRACKINGUSERAMOUNT3=TRACKING:USERAMOUNT3
+             TRACKINGUSERAMOUNT5=TRACKING:USERAMOUNT5
+             TRACKINGUSERAMOUNT6=TRACKING:USERAMOUNT6
+             TRACKINGUSERAMOUNT7=TRACKING:USERAMOUNT7
+             TRACKINGUSERAMOUNT8=TRACKING:USERAMOUNT8
+             
+             TRACKINGUSERDATE1=TRACKING:USERDATE1
+             TRACKINGUSERDATE2=TRACKING:USERDATE2
+             TRACKINGUSERDATE3=TRACKING:USERDATE3
+             TRACKINGUSERDATE4=TRACKING:USERDATE4
+             TRACKINGUSERDATE5=TRACKING:USERDATE5
+             TRACKINGUSERDATE6=TRACKING:USERDATE6
+             TRACKINGUSERDATE7=TRACKING:USERDATE7
+             
+             TRACKINGUSERRATE1=TRACKING:USERRATE1
+             TRACKINGUSERRATE2=TRACKING:USERRATE2
+            END         
+           FOR EACH NAME WITH NAME:TYPE=0 AND NAME:SSN=BorrowerIDNumber
+            DO
+             ACCTNO=ACCOUNT:NUMBER
+             ACCTCORRDATE=ACCOUNT:CORRESPONDDATE
+             ACCTFOUND=ACCTFOUND+1
+             COL=013 NAME:SHORTNAME
+             COL=033 ACCTNO 
+             COL=050 RIGHT TRAXLOC
+             NEWLINE
+            END 
+          END
+        END
+       IF ACCTFOUND=0 THEN
+        DO
+         EXCEPTIONREASON=BorrowerIDNumber+" = No Account Found"
+         CALL EXCEPTIONRPT       
+        END        
+       IF ACCTFOUND=1 THEN
+        DO        
+         IF TRAXLOCNUMBER=0 THEN
+          DO  
+           CALL CREATENEWTRACKING
+          END
+         ELSE
+          DO
+    [TODO:]CALL MODIFYTRACKING
+          END          
+        END
+       IF ACCTFOUND>1 THEN
+        DO
+         EXCEPTIONREASON=BorrowerIDNumber+" = Multiple Accounts Found:"
+         CALL EXCEPTIONRPT
+        END          
+      END
+    END
+  END
+END
+
+PROCEDURE CREATENEWTRACKING
+ OUTPUTSWITCH(OUTPUTCHANNEL1,ERRORTEXT)
+ HEADER=""
+ PRINT "ACCOUNT "+ACCTNO+" MODIFY"
+ NEWLINE
+ PRINT " CHANGE SETWARNING "
+ PRINT MFMWARN
+ PRINT " --/--/--"
+ NEWLINE
+ PRINT " CHANGE CORRESPONDDATE FROM "
+ PRINT ACCTCORRDATE
+ PRINT " TO "
+ PRINT RPTDATE
+ NEWLINE 
+ PRINT "ACCOUNT "+ACCTNO+" CREATE TRACKING AFTERLAST"   
+ NEWLINE
+ PRINT " SET TYPE TO"
+ COL=49 FORMAT("99",MFMTRACK)
+ NEWLINE 
+ PRINT " SET USERCHAR1 TO "
+ COL=49 LoanID
+ NEWLINE
+ PRINT " SET USERCHAR2 TO "
+ COL=49 AccountID
+ NEWLINE
+ PRINT " SET USERCHAR3 TO "
+ COL=49 CollateralCodeDescription
+ NEWLINE
+ PRINT " SET USERCHAR4 TO "
+ COL=49 LoanOfficer
+ NEWLINE
+ PRINT " SET USERCHAR5 TO "
+ COL=49 PurposeCode
+ NEWLINE  
+ PRINT " SET USERCHAR6 TO "
+ COL=49 CollateralAddress
+ NEWLINE
+ PRINT " SET USERCHAR7 TO "
+ COL=49 CollateralCity+", "+CollateralState+"  "+CollateralZipCode
+ NEWLINE 
+ PRINT " SET USERCODE1 TO " 
+ COL=49 RIGHT FORMAT("9999",SYSACTUALTIME)
+ NEWLINE 
+ PRINT " SET USERCODE2 TO " 
+ COL=49 STMTCODE
+ NEWLINE
+ PRINT " SET USERCODE3 TO " 
+ COL=49 RIGHT PaymentFrequency
+ NEWLINE 
+ PRINT " SET USERCODE4 TO "
+ COL=49 RIGHT LoanTerm
+ NEWLINE
+ PRINT " SET USERCODE5 TO "
+ COL=49 RIGHT TypeCode
+ NEWLINE  
+ IF LoanBalance<>"" THEN
+  DO
+   PRINT " SET USERAMOUNT1 TO " 
+   COL=49 RIGHT LoanBalance
+   NEWLINE
+  END
+[PRINT " SET USERAMOUNT2 TO " 
+ COL=49 ""
+ NEWLINE]
+ IF MinimumPayment<>"" THEN
+  DO
+   PRINT " SET USERAMOUNT3 TO "
+   COL=49 RIGHT MinimumPayment
+   NEWLINE
+  END
+[PRINT " SET USERAMOUNT4 TO "
+ COL=49 ""
+ NEWLINE]
+ IF OtherFees<>"" THEN
+  DO
+   PRINT " SET USERAMOUNT5 TO "
+   COL=49 RIGHT OtherFees
+   NEWLINE
+  END
+ IF MinimumPayment<>"" THEN
+  DO
+   PRINT " SET USERAMOUNT6 TO "
+   COL=49 RIGHT MinimumPayment
+   NEWLINE 
+  END
+ IF MinimumPayment<>"" THEN
+  DO
+   PRINT " SET USERAMOUNT7 TO "
+   COL=49 RIGHT MinimumPayment
+   NEWLINE 
+  END
+ IF OriginalBalance<>"" THEN
+  DO 
+   PRINT " SET USERAMOUNT8 TO "
+   COL=49 RIGHT OriginalBalance
+   NEWLINE
+  END
+[PRINT " SET USERAMOUNT9 TO "
+ COL=49 ""
+ NEWLINE]  
+ PRINT " SET USERDATE1 TO "
+ COL=49 NextARMInterestChangeDateDATE
+ NEWLINE 
+ PRINT " SET USERDATE2 TO "
+ COL=49 PmtDueDateDATE
+ NEWLINE
+ PRINT " SET USERDATE3 TO "
+ COL=49 RiskRatingDateDATE
+ NEWLINE 
+ PRINT " SET USERDATE4 TO "
+ COL=49 SYSTEMDATE
+ NEWLINE
+ PRINT " SET USERDATE5 TO "
+ COL=49 DATEOFFSET(SYSTEMDATE,0,31)
+ NEWLINE
+ PRINT " SET USERDATE6 TO "
+ COL=49 OriginationDateDATE
+ NEWLINE
+ PRINT " SET USERDATE7 TO "
+ COL=49 DATEOFFSET(SYSTEMDATE,-1,31)
+ NEWLINE   
+ PRINT " SET USERRATE1 TO "
+ COL=49 RIGHT SEGMENT(CurrentAnnualInterestRate,1,5)+"%"
+ NEWLINE
+ IF CollateralValue<>"" AND LoanBalance<>"" THEN
+  DO
+   PRINT " SET USERRATE2 TO "
+   COL=49 MONEY(VALUE(LoanBalance))/MONEY(VALUE(CollateralValue))
+   NEWLINE
+  END
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT) 
+END
+
+[TODO:]PROCEDURE MODIFYTRACKING
+ OUTPUTSWITCH(OUTPUTCHANNEL1,ERRORTEXT)
+ HEADER=""
+ IF MONEY(VALUE(LoanBalance))=$0.00 THEN
+  DO
+   IF ANYWARNING(ACCOUNT,MFMWARN) THEN
+    DO
+     PRINT "ACCOUNT "+ACCTNO+" MODIFY"
+     NEWLINE
+     PRINT " CHANGE CLEARWARNING "
+     PRINT MFMWARN 
+     PRINT " --/--/--"
+     NEWLINE
+    END
+   IF TRACKINGEXPIREDATE='--/--/--' THEN
+    DO
+     PRINT "ACCOUNT "+ACCTNO+" MODIFY TRACKING LOC "
+     PRINT TRAXLOCNUMBER
+     NEWLINE
+     PRINT " CHANGE USERCODE2 FROM "
+     PRINT TRACKINGUSERCODE2 
+     PRINT " TO "
+     PRINT STMTCODE
+     NEWLINE
+     PRINT " CHANGE USERAMOUNT1 FROM "
+     PRINT TRACKINGUSERAMOUNT1
+     PRINT " TO "
+     PRINT LoanBalance
+     NEWLINE
+    END
+  END
+ ELSE
+  DO
+   IF NOT ANYWARNING(ACCOUNT,MFMWARN) THEN
+    DO
+     PRINT "ACCOUNT "+ACCTNO+" MODIFY"
+     NEWLINE    
+     PRINT " CHANGE SETWARNING "
+     PRINT MFMWARN 
+     PRINT " --/--/--"
+     NEWLINE
+    END
+   IF ACCTCORRDATE<>RPTDATE THEN
+    DO 
+     PRINT "ACCOUNT "+ACCTNO+" MODIFY"
+     NEWLINE    
+     PRINT " CHANGE CORRESPONDDATE FROM "
+     PRINT ACCTCORRDATE
+     PRINT " TO "
+     PRINT RPTDATE
+     NEWLINE
+    END
+   PRINT "ACCOUNT "+ACCTNO+" MODIFY TRACKING LOC "
+   PRINT TRAXLOCNUMBER
+   NEWLINE 
+   [CHAR]        
+   IF TRACKINGUSERCHAR1 <> LoanID THEN         
+    DO
+     PRINT " CHANGE USERCHAR1 FROM "
+     COL=49 TRACKINGUSERCHAR1
+     COL=89 "TO "
+     COL=93 LoanID
+     NEWLINE
+    END
+   IF TRACKINGUSERCHAR2 <> AccountID THEN         
+    DO
+     PRINT " CHANGE USERCHAR2 FROM "
+     COL=49 TRACKINGUSERCHAR2
+     COL=89 "TO "
+     COL=93 AccountID
+     NEWLINE
+    END	
+   IF TRACKINGUSERCHAR3 <> CollateralCodeDescription THEN         
+    DO
+     PRINT " CHANGE USERCHAR3 FROM "
+     COL=49 TRACKINGUSERCHAR3
+     COL=89 "TO "
+     COL=93 CollateralCodeDescription
+     NEWLINE
+    END  
+   IF TRACKINGUSERCHAR4 <> LoanOfficer THEN         
+    DO
+     PRINT " CHANGE USERCHAR4 FROM "
+     COL=49 TRACKINGUSERCHAR4
+     COL=89 "TO "
+     COL=93 LoanOfficer
+     NEWLINE
+    END   
+   IF TRACKINGUSERCHAR5 <> PurposeCode THEN         
+    DO
+     PRINT " CHANGE USERCHAR5 FROM "
+     COL=49 TRACKINGUSERCHAR5
+     COL=89 "TO "
+     COL=93 PurposeCode
+     NEWLINE
+    END
+   IF TRACKINGUSERCHAR6 <> CollateralAddress THEN         
+    DO
+     PRINT " CHANGE USERCHAR6 FROM "
+     COL=49 TRACKINGUSERCHAR6
+     COL=89 "TO "
+     COL=93 CollateralAddress
+     NEWLINE
+    END	
+   IF TRACKINGUSERCHAR7 <> CollateralCity+", "+CollateralState+"  "+CollateralZipCode THEN         
+    DO
+     PRINT " CHANGE USERCHAR7 FROM "
+     COL=49 TRACKINGUSERCHAR7
+     COL=89 "TO "
+     COL=93 CollateralCity+", "+CollateralState+"  "+CollateralZipCode
+     NEWLINE
+    END	
+   [CODE] 
+   IF TRACKINGUSERCODE1 <> SYSACTUALTIME THEN
+    DO
+     PRINT " CHANGE USERCODE1 FROM "
+     COL=49 TRACKINGUSERCODE1
+     COL=89 "TO "
+     COL=100 RIGHT FORMAT("9999",SYSACTUALTIME)
+     NEWLINE	
+	 END
+   IF TRACKINGUSERCODE2 <> STMTCODE THEN
+    DO
+     PRINT " CHANGE USERCODE2 FROM "
+     COL=49 TRACKINGUSERCODE2
+     COL=89 "TO "
+     COL=100 STMTCODE
+     NEWLINE	
+	 END	
+   IF TRACKINGUSERCODE3 <> VALUE(PaymentFrequency) THEN
+    DO
+     PRINT " CHANGE USERCODE3 FROM "
+     COL=49 TRACKINGUSERCODE3
+     COL=89 "TO "
+     COL=100 RIGHT PaymentFrequency
+     NEWLINE	
+	 END		
+   IF TRACKINGUSERCODE4 <> VALUE(LoanTerm) THEN
+    DO
+     PRINT " CHANGE USERCODE4 FROM "
+     COL=49 TRACKINGUSERCODE4
+     COL=89 "TO "
+     COL=100 RIGHT LoanTerm
+     NEWLINE	
+	 END	
+   IF TRACKINGUSERCODE5 <> VALUE(TypeCode) THEN
+    DO
+     PRINT " CHANGE USERCODE5 FROM "
+     COL=49 TRACKINGUSERCODE5
+     COL=89 "TO "
+     COL=100 RIGHT TypeCode
+     NEWLINE	
+	 END			
+   [AMOUNT]	
+   IF TRACKINGUSERAMOUNT1 <> MONEY(VALUE(LoanBalance)) THEN
+    DO
+     PRINT " CHANGE USERAMOUNT1 FROM "
+     COL=49 TRACKINGUSERAMOUNT1
+     COL=89 "TO "
+     COL=100 RIGHT LoanBalance
+     NEWLINE	
+	 END
+   IF TRACKINGUSERAMOUNT3 <> MONEY(VALUE(MinimumPayment)) THEN
+    DO
+     PRINT " CHANGE USERAMOUNT3 FROM "
+     COL=49 TRACKINGUSERAMOUNT3
+     COL=89 "TO "
+     COL=100 RIGHT MinimumPayment
+     NEWLINE	
+	 END 
+   IF TRACKINGUSERAMOUNT5 <> MONEY(VALUE(OtherFees)) THEN
+    DO
+     PRINT " CHANGE USERAMOUNT5 FROM "
+     COL=49 TRACKINGUSERAMOUNT5
+     COL=89 "TO "
+     COL=100 RIGHT OtherFees
+     NEWLINE	
+	 END
+   IF TRACKINGUSERAMOUNT6 <> MONEY(VALUE(MinimumPayment)) THEN
+    DO
+     PRINT " CHANGE USERAMOUNT6 FROM "
+     COL=49 TRACKINGUSERAMOUNT6
+     COL=89 "TO "
+     COL=100 RIGHT MinimumPayment
+     NEWLINE	
+	 END	
+   IF TRACKINGUSERAMOUNT7 <> MONEY(VALUE(MinimumPayment)) THEN
+    DO
+     PRINT " CHANGE USERAMOUNT7 FROM "
+     COL=49 TRACKINGUSERAMOUNT7
+     COL=89 "TO "
+     COL=100 RIGHT MinimumPayment
+     NEWLINE	
+	 END
+   IF TRACKINGUSERAMOUNT8 <> MONEY(VALUE(OriginalBalance)) THEN
+    DO
+     PRINT " CHANGE USERAMOUNT8 FROM "
+     COL=49 TRACKINGUSERAMOUNT8
+     COL=89 "TO "
+     COL=100 RIGHT OriginalBalance
+     NEWLINE	
+	 END	    
+   [DATE] 
+   IF TRACKINGUSERDATE1 <> NextARMInterestChangeDateDATE THEN
+    DO
+     PRINT " CHANGE USERDATE1 FROM "
+     COL=49 TRACKINGUSERDATE1
+     COL=89 "TO "
+     COL=100 NextARMInterestChangeDateDATE
+     NEWLINE	
+	 END 
+   IF TRACKINGUSERDATE2 <> PmtDueDateDATE THEN
+    DO
+     PRINT " CHANGE USERDATE2 FROM "
+     COL=49 TRACKINGUSERDATE2
+     COL=89 "TO "
+     COL=100 PmtDueDateDATE
+     NEWLINE	
+	 END  
+   IF TRACKINGUSERDATE3 <> RiskRatingDateDATE THEN
+    DO
+     PRINT " CHANGE USERDATE3 FROM "
+     COL=49 TRACKINGUSERDATE3
+     COL=89 "TO "
+     COL=100 RiskRatingDateDATE
+     NEWLINE	
+	 END 	
+   IF TRACKINGUSERDATE4 <> SYSTEMDATE THEN
+    DO
+     PRINT " CHANGE USERDATE4 FROM "
+     COL=49 TRACKINGUSERDATE4
+     COL=89 "TO "
+     COL=100 SYSTEMDATE
+     NEWLINE	
+	 END	
+   IF TRACKINGUSERDATE5 <> DATEOFFSET(SYSTEMDATE,0,31) THEN
+    DO
+     PRINT " CHANGE USERDATE5 FROM "
+     COL=49 TRACKINGUSERDATE5
+     COL=89 "TO "
+     COL=100 DATEOFFSET(SYSTEMDATE,0,31)
+     NEWLINE	
+	 END		
+   IF TRACKINGUSERDATE6 <> OriginationDateDATE THEN
+    DO
+     PRINT " CHANGE USERDATE6 FROM "
+     COL=49 TRACKINGUSERDATE6
+     COL=89 "TO "
+     COL=100 OriginationDateDATE
+     NEWLINE	
+	 END
+   IF TRACKINGUSERDATE7 <> DATEOFFSET(SYSTEMDATE,-1,31) THEN
+    DO
+     PRINT " CHANGE USERDATE7 FROM "
+     COL=49 TRACKINGUSERDATE7
+     COL=89 "TO "
+     COL=100 DATEOFFSET(SYSTEMDATE,-1,31)
+     NEWLINE	
+	 END    
+   [RATE] 
+   INTRATE=VALUE(SEGMENT(CurrentAnnualInterestRate,1,5))/100000
+   IF TRACKINGUSERRATE1 <> INTRATE THEN
+    DO
+     PRINT " CHANGE USERRATE1 FROM "
+     COL=49 TRACKINGUSERRATE1
+     COL=89 "TO "
+     COL=100 INTRATE
+     NEWLINE	
+	 END	
+  IF CollateralValue<>"" AND LoanBalance<>"" THEN
+   DO
+    LTV=MONEY(VALUE(LoanBalance))/MONEY(VALUE(CollateralValue))
+    IF TRACKINGUSERRATE2 <> LTV THEN
+     DO
+      PRINT " CHANGE USERRATE2 FROM "
+      COL=49 TRACKINGUSERRATE2
+      COL=89 "TO "
+      COL=100 LTV
+      NEWLINE	
+     END
+ 	 END
+
+  END
+ 
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)  
+END
+
+PROCEDURE EXCEPTIONRPT
+ OUTPUTSWITCH(OUTPUTCHANNEL2,ERRORTEXT)
+ HEADER=""
+ COL=001 EXCEPTIONREASON
+ FOR ACCOUNT WITH SSN BorrowerIDNumber
+  DO       
+   FOR EACH NAME WITH NAME:TYPE=0 AND NAME:SSN=BorrowerIDNumber
+    DO  
+     COL=040 ACCOUNT:NUMBER 
+     COL=053 NAME:SHORTNAME
+     NEWLINE
+    END 
+  END 
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)
+END 
+
+PROCEDURE ERRORHANDLER
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXTIGNORE)
+ PRINT "Error: "+ERRORTEXT
+ NEWLINE
+ TERMINATE
+END
+
+PROCEDURE PROCESSDATA
+ IF DETAILS=1 THEN
+  DO
+   FOR G=1 TO TOPCOL
+    DO
+     PRINT FIELDDATA(G)
+     NEWLINE
+    END
+  END
+ LoanBalance                         = FIELDDATA(001)
+ LoanID                              = FIELDDATA(002)
+ OriginalBalance                     = FIELDDATA(003)
+ OriginationDate                     = FIELDDATA(004)
+ YR=VALUE(SEGMENT(OriginationDate,1,4))
+ MO=VALUE(SEGMENT(OriginationDate,6,7))
+ DA=VALUE(SEGMENT(OriginationDate,9,10))
+ OriginationDateDATE=DATE(MO,DA,YR)  
+ STATUS                              = FIELDDATA(005)
+ TypeCode                            = FIELDDATA(006)
+ AutoMake                            = FIELDDATA(007)
+ AutoModel                           = FIELDDATA(008)
+ AutoVIN                             = FIELDDATA(009)
+ AutoYear                            = FIELDDATA(010)
+ BorrowerCreditScore                 = FIELDDATA(011)
+ BorrowerCreditScoreDate             = FIELDDATA(012)
+ BorrowerIDNumber                    = FIELDDATA(013)
+ BorrowerOriginalCreditScore         = FIELDDATA(014)
+ BorrowerID                          = FIELDDATA(015)
+ ChargeoffBalance                    = FIELDDATA(016)
+ ChargeoffDate                       = FIELDDATA(017)
+ ClosedDate                          = FIELDDATA(018)
+ CollateralAddress                   = FIELDDATA(019) 
+ CollateralCity                      = FIELDDATA(020)
+ WHILE SEGMENT(CollateralCity,LENGTH(CollateralCity),LENGTH(CollateralCity))=" " AND LENGTH(CollateralCity)>1
+  DO
+   CollateralCity=SEGMENT(CollateralCity,LENGTH(CollateralCity)-1,LENGTH(CollateralCity))
+  END
+ CollateralCity=SEGMENT(CollateralCity,1,LENGTH(CollateralCity)) 
+ CollateralState                     = FIELDDATA(021)
+ CollateralZipCode                   = FIELDDATA(022)
+ CreditLimit                         = FIELDDATA(023)
+ PmtDueDate                          = FIELDDATA(024)
+ YR=VALUE(SEGMENT(PmtDueDate,1,4))
+ MO=VALUE(SEGMENT(PmtDueDate,6,7))
+ DA=VALUE(SEGMENT(PmtDueDate,9,10))
+ PmtDueDateDATE=DATE(MO,DA,YR) 
+ DaysDelinquent                      = FIELDDATA(025)
+ GrossChargeoffBalance               = FIELDDATA(026)
+ GrossChargeoffDate                  = FIELDDATA(027)
+ OriginalCollateralValue             = FIELDDATA(028)
+ OriginalLoanTypeCodeChargedOffLoans = FIELDDATA(029)
+ PartialChargeOffIndicator           = FIELDDATA(030)
+ ParticipationPercent                = FIELDDATA(031)
+ CurrentAnnualInterestRate           = FIELDDATA(032)
+ RecoveryBalance                     = FIELDDATA(033)
+ RecoveryDate                        = FIELDDATA(034)
+ RiskRating                          = FIELDDATA(035)
+ RiskRatingDate                      = FIELDDATA(036)
+ YR=VALUE(SEGMENT(RiskRatingDate,1,4))
+ MO=VALUE(SEGMENT(RiskRatingDate,6,7))
+ DA=VALUE(SEGMENT(RiskRatingDate,9,10))
+ RiskRatingDateDATE=DATE(MO,DA,YR) 
+ SeniorBalance                       = FIELDDATA(037)
+ SeniorOriginalBalance               = FIELDDATA(038)
+ SoldIndicator                       = FIELDDATA(039)
+ LoanTerm                            = FIELDDATA(040)
+ AccountID                           = FIELDDATA(041)
+ AutoDealer                          = FIELDDATA(042)
+ BorrowerAddress                     = FIELDDATA(043)
+ BorrowerBirthDate                   = FIELDDATA(044)
+ BorrowerCity                        = FIELDDATA(045)
+ BorrowerDebttoIncomeRatio           = FIELDDATA(046)
+ BorrowerDebttoIncomeRatioDate       = FIELDDATA(047)
+ BorrowerFirstName                   = FIELDDATA(048)
+ BorrowerLastName                    = FIELDDATA(049)
+ BorrowerState                       = FIELDDATA(050)
+ BorrowerZipCode                     = FIELDDATA(051)
+ LoanBranch                          = FIELDDATA(052)
+ ChargeoffReversal                   = FIELDDATA(053)
+ ChargeoffReversalDate               = FIELDDATA(054)
+ ChargeoffTransactionID              = FIELDDATA(055)
+ CollateralCode                      = FIELDDATA(056)
+ CollateralCodeDescription           = FIELDDATA(057)
+ DealerFees                          = FIELDDATA(058)
+ LienPosition                        = FIELDDATA(059)
+ LineofCreditDrawExpirationDate      = FIELDDATA(060)
+ LoanOfficer                         = FIELDDATA(061)
+ MaturityDate                        = FIELDDATA(062)
+ MonthlyPandI                        = FIELDDATA(063)
+ OriginalCreditLimit                 = FIELDDATA(064)
+ OriginalRate                        = FIELDDATA(065)
+ PaymentFrequency                    = FIELDDATA(066)
+ RateType                            = FIELDDATA(067)
+ RecoveryReversal                    = FIELDDATA(068)
+ RecoveryReversalDate                = FIELDDATA(069)
+ TDRIndicator                        = FIELDDATA(070)
+ Underwriter                         = FIELDDATA(071)
+ Delinquent120daysCounter            = FIELDDATA(072)
+ Delinquent30daysDelinquentCounter   = FIELDDATA(073)
+ Delinquent60daysDelinquentCounter   = FIELDDATA(074)
+ Delinquent90daysDelinquentCounter   = FIELDDATA(075)
+ AmortizationPeriod                  = FIELDDATA(076)
+ BalloonIndicator                    = FIELDDATA(077)
+ BalloonPayment                      = FIELDDATA(078)
+ BalloonPaymentDate                  = FIELDDATA(079)
+ BorrowerBankruptcyScore             = FIELDDATA(080)
+ BorrowerBankruptcyScoreDate         = FIELDDATA(081)
+ BorrowerCounty                      = FIELDDATA(082)
+ BorrowerGender                      = FIELDDATA(083)
+ BorrowerMiddleName                  = FIELDDATA(084)
+ BorrowerRace                        = FIELDDATA(085)
+ BuyRate                             = FIELDDATA(086)
+ CollateralCounty                    = FIELDDATA(087)
+ CollateralValueDate                 = FIELDDATA(088)
+ CollateralValue                     = FIELDDATA(089)
+ DebtServiceCoverageRatio            = FIELDDATA(090)
+ DebtServiceCoverageRatioDate        = FIELDDATA(091)
+ InterestOnlyIndicator               = FIELDDATA(092)
+ JuniorBalance                       = FIELDDATA(093)
+ JuniorOriginalBalance               = FIELDDATA(094)
+ LOCPaymentsCalendar                 = FIELDDATA(095)
+ LOCPaymentsStatements               = FIELDDATA(096)
+ LOCPurchasesCalendar                = FIELDDATA(097)
+ LOCPurchasesStatement               = FIELDDATA(098)
+ LOCStatementDate                    = FIELDDATA(099)
+ LOCStatementDateBalance             = FIELDDATA(100)
+ NAICSCode                           = FIELDDATA(101)
+ NetOperatingIncome                  = FIELDDATA(102)
+ OtherFees                           = FIELDDATA(103)
+ PotentialGrossIncome                = FIELDDATA(104)
+ PurposeCode                         = FIELDDATA(105)
+ VacancyRate                         = FIELDDATA(106)
+ DelinqencyTable                     = FIELDDATA(107)
+ ImpairmentAmount                    = FIELDDATA(108)
+ MinimumPayment                      = FIELDDATA(109)
+ CustomField1                        = FIELDDATA(110)
+ CustomField2                        = FIELDDATA(111)
+ CustomField3                        = FIELDDATA(112)
+ CustomField4                        = FIELDDATA(113)
+ CustomField5                        = FIELDDATA(114)
+ InvBankCode                         = FIELDDATA(115)
+ InvCode                             = FIELDDATA(116)
+ InvGroupCode                        = FIELDDATA(117)
+ NextARMInterestChangeDate           = FIELDDATA(118)
+ YR=VALUE(SEGMENT(NextARMInterestChangeDate,1,4))
+ MO=VALUE(SEGMENT(NextARMInterestChangeDate,6,7))
+ DA=VALUE(SEGMENT(NextARMInterestChangeDate,9,10))
+ NextARMInterestChangeDateDATE=DATE(MO,DA,YR)
+ CoborrowerLast                      = FIELDDATA(119)
+ CoborrowerFirst                     = FIELDDATA(120)
+ CoborrowerSSN                       = FIELDDATA(121)
+ LastPaymentPostedDate               = FIELDDATA(122)      
+END
+
+
+PROCEDURE GETCOMMADELIMITEDRECORD
+ FOR CD = 0 TO 999
+  DO
+   FIELDDATA(CD) = ""
+  END
+
+ CDONE = 0
+ CD = 0
+ WHILE CDONE = 0 AND EOFOUND = 0
+  DO
+   CALL READDATA
+   IF EOFOUND = 0 THEN
+    DO
+     IF CDATA = CTRLCHR(10) OR             [Newline]              [End of Record]
+        CDATA = CTRLCHR(12) OR             [Form Feed]
+        CDATA = CTRLCHR(13) THEN           [Carrage Return]
+      DO
+       IF CD > 0 THEN                      [Skip extra Line Feeds]
+        DO
+         CDONE = 1
+         CD = CD + 1            
+         FIELDDATA(CD) = STAGE      
+         STAGE = ""
+        END                 
+      END
+     ELSE IF CDATA = "|" AND               [End of Field]
+               QON = 0 THEN                [Not inside Quotes] 
+      DO
+       CD = CD + 1            
+       FIELDDATA(CD) = STAGE
+       STAGE = ""
+      END
+     ELSE IF CDATA = CTRLCHR(34) THEN      [Quote]
+      DO
+       IF QON = 0 THEN
+        QON = 1
+       ELSE
+        QON = 0
+      END 
+     ELSE
+      DO
+       STAGE = STAGE + CDATA
+      END
+    END
+  END
+END
+
+PROCEDURE READDATA
+ FILEREAD(CNUMBER,1,CDATA,CERROR)
+ IF CERROR = "EOF" THEN
+  DO
+   EOFOUND = 1
+   FILECLOSE(CNUMBER,CERROR)
+  END
+ ELSE IF CERROR <> "" THEN
+  DO
+   PRINT "Error Reading Comma Delimited File = "+CERROR
+   NEWLINE
+   TERMINATE
+  END
+END
