@@ -1,0 +1,101 @@
+Category 01 - Alert From Fraud Detection - Consumer Report Alerts 
+
+01. An Initial Fraud Alert is included with a consumer report. 
+02. An Extended Fraud Alert is included with a consumer report.
+03. An Active Duty Alert is included with a consumer report. 
+04. A consumer reporting agency provides a notice of address discrepancy, as defined in Sec.  41.82(b)
+05. A California Fraud Alert is included with a consumer report.
+06. Fraud Alert is included with a consumer report.
+07. SSN is listed as assigned to a deceased person.
+08. Unable to verify SSN.
+09. Birth Date does not match with a consumer report birth date.
+10. An unusual number of recently established credit relationships;
+11. A material change in the use of credit, especially with respect to recently established credit relationships
+12. An account that was closed for cause or identified for abuse of account privileges by a financial institution or creditor.
+13. A recent and significant increase in the volume of inquiries;
+14. A consumer reporting agency provides a notice of credit freeze in response to a request for a consumer report.
+15. A consumer report indicates a pattern of activity that is inconsistent with the history and usual pattern of activity of an applicant or customer.
+16. A consumer report indicates an invalid address.
+17. Name found on OFAC/PLC List
+18. Multiple SSNs found on Credit Report (Review Credit Report)
+
+Category 02 - Suspicious Documents - Consumer Report Identity Scan Codes
+
+01. 3 - Possible true name fraud. Thorough verification suggested. Code No Longer Used as of 10/12/12.
+02. M - SSN issued recently. 
+03. I - Retired Social Security Number (deceased). 
+04. A - SSN never issued or issued after June 2011. 
+05. G - Address listed as a Post Office. 
+06. O - Inquiry SSN issued prior to inquiry date of birth. 
+07. 4 - SSN may be a tax ID number. 
+08. B - SSN reported misused. 
+09. C - Address listed with more than one name or SSN. 
+10. P - Address listed as a correctional institution. 
+11. Z - Address listed as a mail receiving service. 
+12. F - Inquiry address is a check cashing facility. No Longer used as of 10/12/12.
+13. E - Inquiry address is a storage facility.  No Longer used as of 10/12/12. 
+14. K - Inquiry address is a telephone answering service. No Longer used as of 10/12/12. 
+15. H - Address listed as a campground. 
+16. J - Address listed as a Hotel/Motel.
+17. 2 - Address has been reported as misused. 
+18. L - Fraud Victim alert Present.
+19. N - Active Duty Alert Present.
+20. Q - SSN reported deceased and last name mismatch.
+21. W - Address listed as a non residential address.
+22. X - Address associated with reported fraud.
+23. 1 - Address listed as a multi dwelling unit.
+24. 9 - Inquiry SSN is invalid.
+25. R - Inquiry address is NOT associated with this consumer name.
+26. Y - Inquiry telephone number is listed as a commercial phone.
+27. 5 - Inquiry telephone number may belong to a mobile phone.
+28. 7 - Unable to perform SSN validation due to insufficient SSN input.
+29. 8 - Inquiry telephone number is incomplete, or is not a valid format.
+30. D - Inquiry address unverifiable or does not exist.
+31. No Association Between SSN and Name
+32. Address Conflict - Review with Member
+
+
+Category 03 - Suspicious Personal Identifying Information
+
+01. Documents provided for identification appear to have been altered or forged.
+02. The photograph or physical description on the identification is not consistent with the appearance of the applicant or customer presenting the identification.
+03. Other information on the identification is not consistent with information provided by the person opening a new covered account or customer presenting the identification.
+04. Other information on the identification is not consistent with readily accessible information that is on file with the financial institution or creditor, such as a signature card or a recent check.
+05. An application appears to have been altered or forged, or gives the appearance of having been destroyed and reassembled.
+06. Personal identifying information provided is inconsistent when compared against external information sources used by the financial institution or creditor.  For example, Birth date does not match credit report.
+07. The address does not match any address in the consumer report; or 
+08. Personal identifying information provided by the customer is not consistent with other personal identifying information provided by the customer. For example, there is a lack of correlation between the SSN range and date of birth.
+09. Personal identifying information provided is associated with known fraudulent activity as indicated by internal or third-party sources used by the financial institution or creditor. For example:
+10. The address on an application is the same as the address provided on a fraudulent application
+11. The phone number on an application is the same as the number provided on a fraudulent application.
+12. Personal identifying information provided is of  a type commonly associated with fraudulent activity as indicated by internal or third-party sources used by the financial institution or creditor.
+13. The address is possibly fictitious, hotel/motel, mail drop, prison, capmground, storage or check cashing facility.
+14. The phone number is invalid, or is associated with a pager or answering service.
+15. The SSN provided is the same as that submitted by other persons opening an account or other customers.
+16. The address or telephone number provided is the same as or similar to the account number or telephone number submitted by an unusually large number of other persons opening accounts or other customers.
+17. The person opening the covered account or the customer fails to provide all required personal identifying information on an application or in response to notification that the application is incomplete.
+18. Personal identifying information provided is not consistent with personal identifying information that is on file with the financial institution or creditor.
+19. For financial institutions and creditors that use challenge questions, the person opening the covered account or the customer cannot provide authenticating information beyond that which generally would be available from a wallet or consumer report.
+
+Category 04 - Unusual Use of, or Suspicious Activity Related to, the Covered Account
+
+01. Shortly following the notice of a change of address for a covered account, the institution or creditor receives a request for a new, additional, or replacement card or a cell phone, or for the addition of authorized users on the account.
+02. A new revolving credit account is used in a manner commonly associated with known patterns of fraud patterns.
+03. The majority of available credit is used for cash advances or merchandise that is easily convertible to cash (e.g., electronics equipment or jewelry)
+04. The customer fails to make the first payment or makes an initial payment but no subsequent payments.
+05. A covered account is used in a manner that is not consistent with established patterns of activity on the account.
+06. Nonpayment when there is no history of late or missed payments;
+07. A material increase in the use of available credit;
+08. A material change in purchasing or spending patterns;
+09. A material change in electronic fund transfer patterns in connection with a deposit account; or
+10. A material change in telephone call patterns in connection with a cellular phone account.
+11. A covered account that has been inactive for a reasonably lengthy period of time is used (taking into consideration the type of account, the expected pattern of usage and other relevant factors).
+12. Mail sent to the customer is returned repeatedly as undeliverable although transactions continue to be conducted in connection with the customer's covered account.
+13. The financial institution or creditor is notified that the customer is not receiving paper account statements.
+14. The financial institution or creditor is notified of unauthorized charges or transactions in connection with a customer's covered account.
+
+Category 05 - Notice from Customers, Victims of Identity Theft, Law Enforcement Authorities, or Other Persons 
+
+01. The financial institution or creditor is notified by a customer, a victim of identity theft, a law enforcement authority, or any other person that it has opened a fraudulent account for a person engaged in identity theft.
+
+Category 06 - Other
