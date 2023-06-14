@@ -1,0 +1,1476 @@
+[
+  Filename: CARDPRINTING.ATFCU
+  --------------------------------------------------------------------
+  Copy of    : CARDPRINTING.XXX
+  Version    : 12.2
+  Owner      : CPI
+  Creator    : Symitar Custom Solutions VIP
+  Description: Allows for PIN and/or physical printing of card records
+  --------------------------------------------------------------------  
+  Modified by CUTEK - Marc Middleton November 2022. CERTS #32166
+]
+SUBROUTINE DEMAND WINDOWS
+[CARDCREATIONWIZARD] [<-- Uncomment this and comment WINDOWS to allow this to be run from card wizard]
+TARGET=ACCOUNT
+
+DEFINE
+  #INCLUDE "RD.GETDATA.DEF"
+  QT=CHARACTER(1)
+
+  TRUE=1
+  FALSE=0
+
+  FOUNDCARD=NUMBER
+
+  USERAUTHFILE     = "CARDPRINTING.USERS"
+  CFGFILENAME    = "CARDPRINTING.CFG"
+
+  [Postback variables]
+  INPUTCOUNT = NUMBER
+  INPUTFORM = CHARACTER ARRAY(999)
+  RETCOMMAND = CHARACTER
+  INPUT = CHARACTER
+  THEFIELD = CHARACTER	
+  THEVALUE = CHARACTER
+
+  [File Opening Variables]
+  FILENUMBER = NUMBER
+  FILETEXT = CHARACTER
+  FILEERROR = CHARACTER
+  FILENAME = CHARACTER
+
+  [Configuration Variables]
+  CFGLINE = CHARACTER 
+  TILDELOC = NUMBER
+  CFGLENGTH = NUMBER
+  URL = CHARACTER
+  TIMEOUT = CHARACTER(10)
+  INTERVAL = CHARACTER(10)
+  PRINTERS = CHARACTER
+  KEY = CHARACTER
+  KEYFILE = CHARACTER
+  BLK = CHARACTER(5)
+  PRINTERFILE = CHARACTER
+  MAXCHARS=NUMBER
+  IMGHEIGHT=CHARACTER
+  IMGWIDTH=CHARACTER
+  REPIN = CHARACTER(5)
+  PINPRINT = CHARACTER(5)
+  CREATECARDNOTE = CHARACTER(5)
+  IMAGEID = CHARACTER
+  REQIMGSEL = CHARACTER(5)
+  BINPAIRING = CHARACTER(5)
+  BINLENGTH=CHARACTER(1)
+  FRONTENDLOGGING = CHARACTER(5)
+  ACTIVATE=CHARACTER(5)
+  SENDACTDATAACTIVATE=CHARACTER(5) [QRT-152]
+  SENDACTDATAPIN=CHARACTER(5) [QRT-151]
+  ACCTNUMFORMAT=NUMBER [QRT-579]
+  MISCIDRECORDTYPE=CHARACTER(1) [QRT-728]
+  SHARECODE0 = CHARACTER
+  SHARECODE1 = CHARACTER
+  SHARECODE2 = CHARACTER
+  SHARECODE3 = CHARACTER
+  USEPRIMEDATA = CHARACTER
+  PINPADURL = CHARACTER
+
+  [Variables for updating card record]
+  CARDLOCATOR = NUMBER
+  CARDNUMBER = CHARACTER
+  CARDSUFFIX = CHARACTER(2)
+  OFFSET = NUMBER
+ 
+  PRIMENAME=CHARACTER(40)
+  PRIMENAMEDATA=CHARACTER
+  PRIMEOTHERDATA1=CHARACTER
+  PRIMEOTHERDATA2=CHARACTER
+  PRIMEADDRESSDATA=CHARACTER
+  JOINTNAME=CHARACTER(40)
+  JOINTNAMEDATA=CHARACTER
+  JOINTOTHERDATA1=CHARACTER
+  JOINTOTHERDATA2=CHARACTER
+  JOINTADDRESSDATA=CHARACTER
+  SHAREDATA = CHARACTER ARRAY(99)
+  NAMEINFO = CHARACTER
+  PHONEINFO = CHARACTER
+  OTHERNAMEINFO = CHARACTER
+  ADDRINFO = CHARACTER
+  CARDINFO = CHARACTER
+  OPTIONVALUE=CHARACTER
+  OPTIONVALUE1=CHARACTER
+  LNAME=CHARACTER(40)
+  FMERROR = CHARACTER
+  CARDNOTETXT = CHARACTER ARRAY(3)
+  CARDNOTECODE = CHARACTER
+
+  [For Find and Replace]
+  STARTSTR = CHARACTER
+  FINDSTR  = CHARACTER
+  REPLACESTR = CHARACTER
+  TEMPSTR  = CHARACTER
+  TMPSTR1 = CHARACTER
+  TMPSTR2 = CHARACTER
+
+  [Variables for Card Type and Funding logic]
+  EPISYSTYPE=NUMBER ARRAY(99)
+  EFTTYPE=NUMBER ARRAY(99)
+  EFTBINLENGTH=NUMBER ARRAY(99)
+  FUNDTYPE=NUMBER ARRAY(99)
+  FUNDLOGIC=NUMBER ARRAY(99)
+  FUNDACCT=NUMBER ARRAY(99)
+  ALTFUNDACCT=NUMBER ARRAY(99)
+  SERVICECODE=NUMBER ARRAY(99)
+  SCSHARELOAN=CHARACTER ARRAY(99)
+  TEMP=CHARACTER
+  I=NUMBER
+  J=NUMBER
+  FUNDSL = CHARACTER
+
+  [Permission Variables]
+  USERNUM          = CHARACTER
+  USERROLE         = CHARACTER
+  CURRENTUSER      = CHARACTER
+
+  CARDNBR = CHARACTER
+  ALLCARDS=CHARACTER   ARRAY(1000)
+  AI=NUMBER
+  AL=NUMBER 
+END
+
+SETUP
+  [todo: Add variables for Card Number and Name to be passed as subroutine variables.]
+  CARDNBR=@ENVPARAMCHAR1   [*** ATFCU Added]
+  LNAME=@ENVPARAMCHAR2     [*** ATFCU Added]
+
+  QT=CTRLCHR(34)
+ 
+  [If user does not have priviledge to do account FM or Card FM then do not allow them to run it]
+  [ JJ 071520 Removed privilege check per Raye Anne ticket # 23541 ]
+[  
+  IF GETDATANUMBER(GETUSERPRIVILEGE,SYSUSERNUMBER,234)=0 THEN
+  DO
+    POPUPMESSAGE(0,"You do not have the required permission, CARD REVISION, to run this Repgen")
+    TERMINATE
+  END
+
+  IF GETDATANUMBER(GETUSERPRIVILEGE,SYSUSERNUMBER,5)=0  THEN
+  DO
+    POPUPMESSAGE(0,"You do not have the required permission, ACCOUNT FILE MAINTENANCE, to run this Repgen")
+    TERMINATE
+  END
+]  
+  CALL CHECKUSERFILE  
+  IF CURRENTUSER = "" THEN
+  DO
+    POPUPMESSAGE(0,"The current User is not defined in the User Access Table")
+    [FIXME:TERMINATE  [<<<<<<<<<<<<<<<<]]
+  END
+
+  PRINTERFILE = FORMAT("999",SYSSYMDIRECTORY) + "." + FORMAT("9999",GETDATANUMBER(GETCONSOLEBRANCH,SYSCONSOLENUM)) + ".CARDPRINTING.PRN"
+  CALL GETCFGINFO
+  IF (BLK = "True") THEN
+    KEYFILE = FORMAT("999",SYSSYMDIRECTORY) + "." + FORMAT("9999",GETDATANUMBER(GETCONSOLEBRANCH,SYSCONSOLENUM)) + ".CARDPRINTING.KEY"
+  ELSE
+    KEYFILE = FORMAT("999",SYSSYMDIRECTORY) + ".CARDPRINTING.KEY"
+
+  CALL LOADCARDTYPE
+  
+  IF ACTIVATE = "TRUE" THEN
+    CALL LOADCARDFUND
+  CALL GETKEY
+  CALL GETPRINTER
+[bug:]CALL CHECKACCTINFO
+  CALL GENERATEHTML
+
+  RETCOMMAND = ["continue"]"CONTINUE"
+  WHILE (RETCOMMAND <> ["close"]"CLOSE")
+  DO
+    CALL HANDLEHTMLINPUT
+    CALL DEBUGSCREEN
+    IF RETCOMMAND = "PRINT" THEN
+    DO
+      CALL SAVECARDINFO
+    END [If]
+    IF RETCOMMAND = "PIN" THEN
+    DO
+      CALL SAVECARDINFOPIN
+    END [IF]
+    IF RETCOMMAND = "ACT" THEN
+    DO
+      CALL SAVECARDINFOACT
+    END [IF]
+  END [While]
+END
+
+PRINT TITLE="CARDPRINTING.ATFCU"
+  SuppressNewLine
+END
+
+PROCEDURE GENERATEHTML
+
+  HTMLVIEWOPEN(0)
+  HTMLVIEWLINE("<!DOCTYPE html PUBLIC "+QT+"-//W3C//DTD HTML 4.01 Transitional//EN"+QT)
+  HTMLVIEWLINE(" "+QT+"http://www.w3.org/TR/html4/loose.dtd"+QT+">")
+  HTMLVIEWLINE("<html>")
+  HTMLVIEWLINE("<head>")
+  HTMLVIEWLINE("<meta http-equiv='Content-Type' content='text/html; charset=ISO-8859-1'>")
+  HTMLVIEWLINE("<meta http-equiv='cache-control' content='max-age=0' />")
+  HTMLVIEWLINE("<meta http-equiv='cache-control' content='no-cache' />")
+  HTMLVIEWLINE("<meta http-equiv='expires' content='0' />")
+  HTMLVIEWLINE("<meta http-equiv='expires' content='Tue, 01 Jan 1980 1:00:00 GMT' />")
+  HTMLVIEWLINE("<meta http-equiv='pragma' content='no-cache' />")
+  HTMLVIEWLINE("<meta http-equiv='X-UA-Compatible' content='IE=edge'>")
+  HTMLVIEWLINE("<title>Card Printing</title>")
+ 
+  [Loading Style Sheet data]
+  FILENAME="CARDPRINTING.CSS"
+  CALL GETJSCSSSCRIPT
+[FIXME:FRONTENDLOGGING = "FALSE" [<<<<<<<<<<<<<<<<<<<<<]]
+  IF FRONTENDLOGGING = "TRUE" THEN
+    HTMLVIEWLINE("<script src='log4javascript.js' type='text/javascript'></script>")
+ 
+  [Loading Javascript data]
+  FILENAME="CARDPRINTING.JS"
+  CALL GETJSCSSSCRIPT
+
+  HTMLVIEWLINE("</head>")
+  IF FRONTENDLOGGING = "FALSE" THEN
+    HTMLVIEWLINE("<body onload=' ")
+  ELSE
+    HTMLVIEWLINE("<body onload='initLogging(" + QT + URL + QT + "," + QT + FORMAT("9999",SYSUSERNUMBER) + QT + "); ")
+  HTMLVIEWLINE(" schedPrinterStat(" + INTERVAL + "," + TIMEOUT + "," + "")
+  HTMLVIEWLINE("" + QT + URL + QT + "," )
+  HTMLVIEWLINE("" + QT + KEY + QT + ");popFields();loadPrinters(); ")
+
+  HTMLVIEWLINE(" imagesReq(" + QT + URL  + QT + "," )
+  HTMLVIEWLINE("" + QT + IMGHEIGHT + QT)
+  HTMLVIEWLINE("" + "," + QT + IMGWIDTH + QT + "," + QT + BINPAIRING + QT + ");")
+  HTMLVIEWLINE(" '>")
+
+  HTMLVIEWLINE("<form name='cardPrinting' id='cardPrinting' method='POST' action='Symitar://HTMLView~Action=Post'>")
+  HTMLVIEWLINE("<input type='hidden' name='retCommand' id='retCommand' value='close'> ")
+  HTMLVIEWLINE("<input type='hidden' name='cardNumber' id='cardNumber'> ")
+  HTMLVIEWLINE("<input type='hidden' name='cardLocator' id='cardLocator'> ")
+  HTMLVIEWLINE("<input type='hidden' name='cardStatus' id='cardStatus'> ") [QRT-149]
+  HTMLVIEWLINE("<input type='hidden' name='cardSuffix' id='cardSuffix'> ")
+  HTMLVIEWLINE("<input type='hidden' name='cardType' id='cardType'> ")
+  HTMLVIEWLINE("<input type='hidden' name='binLength' id='binLength'> ")
+  HTMLVIEWLINE("<input type='hidden' name='offset' id='offset'> ")
+  HTMLVIEWLINE("<input type='hidden' name='back' id='back'> ")
+  HTMLVIEWLINE("<input type='hidden' name='jobID' id='jobID'> ")
+  HTMLVIEWLINE("<input type='hidden' name='offsetJobID' id='offsetJobID'> ") [QRT-149]
+  HTMLVIEWLINE("<input type='hidden' name='fullPrintReturn' id='fullPrintReturn'> ") [QRT-149]
+  HTMLVIEWLINE("<input type='hidden' name='extraData' id='extraData'> ")
+  HTMLVIEWLINE("<input type='hidden' name='printerID' id='printerID'> ") 
+  HTMLVIEWLINE("<input type='hidden' name='printers' id='printers' value='" + PRINTERS + "'> ")
+  HTMLVIEWLINE("<input type='hidden' name='repin' id='repin' value='" + REPIN + "'> ")
+  HTMLVIEWLINE("<input type='hidden' name='pinprint' id='pinprint' value='" + PINPRINT + "'> ")
+  HTMLVIEWLINE("<input type='hidden' name='frontEndLog' id='frontEndLog' value='" + FRONTENDLOGGING + "'> ")
+  HTMLVIEWLINE("<input type='hidden' name='permissions' id='permissions' value='" + CURRENTUSER + "'> ")
+  HTMLVIEWLINE("<input type='hidden' name='activ' id='activ' value='" + ACTIVATE + "'> ")
+  [QRT-152]
+  HTMLVIEWLINE("<input type='hidden' name='sendActDataOnActivate' id='sendActDataOnActivate' value='" + SENDACTDATAACTIVATE + "'> ")
+  [QRT-151]
+  HTMLVIEWLINE("<input type='hidden' name='sendActDataOnPIN' id='sendActDataOnPIN' value='" + SENDACTDATAPIN + "'> ")
+  HTMLVIEWLINE("<input type='hidden' name='pinpadurl' id='pinpadurl' value='" + PINPADURL + "'> ")
+  
+  HTMLVIEWLINE(" <table>")
+  HTMLVIEWLINE("  <thead>")
+  HTMLVIEWLINE("   <tr><td class='header' colspan='4'>Card Printing  ATFCU</td></tr>")
+  HTMLVIEWLINE("  </thead>")
+  HTMLVIEWLINE("  <tbody>")
+  HTMLVIEWLINE("  <tr><td>&nbsp;</td></tr>")
+  HTMLVIEWLINE("  <tr>")
+  HTMLVIEWLINE("  <td>Printer Status:</td>")
+  HTMLVIEWLINE("  <td colspan = '3'><input type='text' id='printerStatus'  class='status' value=''></td>")
+  HTMLVIEWLINE("  </tr>")
+  HTMLVIEWLINE("  <tr>")
+  HTMLVIEWLINE("   <td>Process Status:</td>")
+  HTMLVIEWLINE("   <td colspan = '3'><input type='text' id='processStatus'  class='status' value=''></td>")
+  HTMLVIEWLINE("  </tr>")
+  HTMLVIEWLINE("  <tr>")
+  HTMLVIEWLINE("   <td id='otherErrorTd' style='display: none;'>Error:</td>")
+  HTMLVIEWLINE("   <td colspan='3'><input type='text' id='otherError' class='status' value='' style='display: none;'></td>")
+  HTMLVIEWLINE("  </tr>")
+  HTMLVIEWLINE("   <tr>")
+  HTMLVIEWLINE("   <td>Card:</td>")
+  HTMLVIEWLINE("   <td>")
+  HTMLVIEWLINE("    <select name='cardSelect' id='cardSelect' onchange='popFields(); ")   
+
+ FOR AI=1 TO AL
+  DO
+   [POPUPMESSAGE(1,ALLCARDS(AI)) ]
+  END  
+  
+  IF  BINPAIRING = "TRUE" THEN
+  DO
+    HTMLVIEWLINE("        imagesReq(" + QT + URL  + QT + "," )
+    HTMLVIEWLINE("" + QT + IMGHEIGHT + QT)
+    HTMLVIEWLINE("" + "," + QT + IMGWIDTH + QT + "," + QT + BINPAIRING + QT + ");")
+  END
+  HTMLVIEWLINE(" '>")
+  
+[WTF: QRT-149
+  I=0
+  FOR ACCOUNT ACCOUNT:NUMBER
+   DO
+    SHAREDATA(I)="["
+    FOR EACH SHARE WITH SHARE:CLOSEDATE = '-/-/-'
+     DO
+	  SHAREDATA(I)=SHAREDATA(I) + "{"
+      IF ACCTNUMFORMAT=1 THEN
+       SHAREDATA(I) = SHAREDATA(I) + QT + "a" + QT + ":" + QT + ACCOUNT:NUMBER + "S" + SHARE:ID + QT + ","
+      ELSE IF ACCTNUMFORMAT=2 THEN
+	   SHAREDATA(I) = SHAREDATA(I) + QT + "a" + QT + ":" + QT + ACCOUNT:NUMBER + SHARE:ID + QT + ","
+      ELSE
+       SHAREDATA(I) = SHAREDATA(I) + QT + "a" + QT + ":" + QT + ACCOUNT:NUMBER + QT + ","
+      SHAREDATA(I) = SHAREDATA(I) + QT + "t" + QT + ":" + QT + FORMAT("9999",SHARE:TYPE) + QT + ","
+	  SHAREDATA(I) = SHAREDATA(I) + QT + "sl" + QT + ":" + QT + "S" + SHARE:ID + QT + ","
+	  
+      FINDSTR = CTRLCHR(34)
+      REPLACESTR = "&&##34;"
+      STARTSTR = SHARE:DESCRIPTION
+      CALL FINDREPLACE
+	  SHAREDATA(I) = SHAREDATA(I) + QT + "d" + QT + ":" + QT + STARTSTR + QT + ","
+	  
+
+	  
+	  IF SHARE:SHARECODE = 0 THEN 
+	    SHAREDATA(I) = SHAREDATA(I) + QT + "c" + QT + ":" + QT + SHARECODE0 + QT + ","
+	  ELSE IF SHARE:SHARECODE = 1 THEN 
+		SHAREDATA(I) = SHAREDATA(I) + QT + "c" + QT + ":" + QT + SHARECODE1 + QT + ","
+	  ELSE IF SHARE:SHARECODE = 2 THEN 
+		SHAREDATA(I) = SHAREDATA(I) + QT + "c" + QT + ":" + QT + SHARECODE2 + QT + ","
+	  ELSE IF SHARE:SHARECODE = 3 THEN 
+		SHAREDATA(I) = SHAREDATA(I) + QT + "c" + QT + ":" + QT + SHARECODE3 + QT + ","
+		
+	  SHAREDATA(I) = SHAREDATA(I) + QT + "b" + QT + ":" + QT + FORMAT("+#######9.99",SHARE:BALANCE) + QT
+      SHAREDATA(I) = SHAREDATA(I) + "},"
+      I=I+1
+     END
+    
+    FOR EACH LOAN WITH LOAN:CLOSEDATE = '-/-/-'
+     DO
+	  SHAREDATA(I)=SHAREDATA(I) + "{"
+      IF ACCTNUMFORMAT=1 THEN
+	   SHAREDATA(I) = SHAREDATA(I) + QT + "a" + QT + ":" + QT + ACCOUNT:NUMBER + "L" + LOAN:ID + QT + ","
+      ELSE IF ACCTNUMFORMAT=2 THEN
+	   SHAREDATA(I) = SHAREDATA(I) + QT + "a" + QT + ":" + QT + ACCOUNT:NUMBER + LOAN:ID + QT + ","
+      ELSE
+       SHAREDATA(I) = SHAREDATA(I) + QT + "a" + QT + ":" + QT + ACCOUNT:NUMBER + QT + ","
+	  SHAREDATA(I) = SHAREDATA(I) + QT + "t" + QT + ":" + QT + FORMAT("9999",LOAN:TYPE) + QT + ","
+      SHAREDATA(I) = SHAREDATA(I) + QT + "sl" + QT + ":" + QT + "L" + LOAN:ID + QT + ","
+	  
+	  FINDSTR = CTRLCHR(34)
+      REPLACESTR = "&&##34;"
+      STARTSTR = LOAN:DESCRIPTION
+      CALL FINDREPLACE
+	  SHAREDATA(I) = SHAREDATA(I) + QT + "d" + QT + ":" + QT + STARTSTR + QT + ","
+	  
+	  IF LOAN:LOANCODE = 3 THEN
+	    SHAREDATA(I) = SHAREDATA(I) + QT + "c" + QT + ":" + QT + "CRD" + QT + ","
+	  ELSE
+	    SHAREDATA(I) = SHAREDATA(I) + QT + "c" + QT + ":" + QT + "LON" + QT + ","
+		
+	  SHAREDATA(I) = SHAREDATA(I) + QT + "b" + QT + ":" + QT + FORMAT("+#######9.99",LOAN:BALANCE) + QT
+      SHAREDATA(I) = SHAREDATA(I) + "},"
+      I=I+1
+     END
+	 IF LENGTH(SHAREDATA(I-1)) > 1 THEN [Remove last trailing comma]
+	   SHAREDATA(I-1)= SEGMENT(SHAREDATA(I-1),1,LENGTH(SHAREDATA(I-1))-1)
+	 SHAREDATA(I-1)=SHAREDATA(I-1) + "]"
+   END
+
+  FOR ACCOUNT ACCOUNT:NUMBER
+  DO
+    FOR EACH NAME WITH NAME:TYPE = 0
+    DO
+      PRIMENAME = QT + "ln" + QT + ":" + QT + SEGMENT(NAME:LONGNAME,1,MAXCHARS) + QT + ","
+	  PRIMENAMEDATA = QT + "nt" + QT + ":" + QT + NAME:TITLE + QT + ","
+	  PRIMENAMEDATA = PRIMENAMEDATA + QT + "nf" + QT + ":" + QT + NAME:FIRST + QT + ","
+      PRIMENAMEDATA = PRIMENAMEDATA + QT + "nm" + QT + ":" + QT + SEGMENT(NAME:MIDDLE,1,1) + QT + ","
+	  PRIMENAMEDATA = PRIMENAMEDATA + QT + "nl" + QT + ":" + QT + NAME:LAST + QT + ","
+	  PRIMENAMEDATA = PRIMENAMEDATA + QT + "ns" + QT + ":" + QT + NAME:SUFFIX + QT + ","
+
+      PRIMEOTHERDATA1 = QT + "hp" + QT + ":" + QT + NAME:HOMEPHONE + QT + ","
+      PRIMEOTHERDATA1 = PRIMEOTHERDATA1 + QT + "wp" + QT + ":" + QT + NAME:WORKPHONE + QT + ","
+      PRIMEOTHERDATA1 = PRIMEOTHERDATA1 + QT + "mp" + QT + ":" + QT + NAME:MOBILEPHONE + QT + ","
+	  
+	  PRIMEOTHERDATA2 = QT + "l" + QT + ":" + QT + NAME:LICENSE + QT + ","
+      PRIMEOTHERDATA2 = PRIMEOTHERDATA2 + QT + "bd" + QT + ":" + QT + FORMAT("99/99/9999",NAME:BIRTHDATE) + QT + ","
+      PRIMEOTHERDATA2 = PRIMEOTHERDATA2 + QT + "mm" + QT + ":" + QT + NAME:MOTHERSMAIDENNAME + QT + ","
+      PRIMEOTHERDATA2 = PRIMEOTHERDATA2 + QT + "ssn" + QT + ":" + QT + NAME:SSN + QT + ","
+	  
+	  PRIMEADDRESSDATA = QT + "str" + QT + ":" + QT + NAME:STREET + QT + ","
+      PRIMEADDRESSDATA = PRIMEADDRESSDATA + QT + "ea" + QT + ":" + QT + NAME:EXTRAADDRESS + QT + ","
+	  PRIMEADDRESSDATA = PRIMEADDRESSDATA + QT + "cty" + QT + ":" + QT + NAME:CITY + QT + ","
+	  PRIMEADDRESSDATA = PRIMEADDRESSDATA + QT + "st" + QT + ":" + QT + NAME:STATE + QT + ","
+	  PRIMEADDRESSDATA = PRIMEADDRESSDATA + QT + "z" + QT + ":" + QT + NAME:ZIPCODE + QT + ","
+	  
+      
+      IF NAME:ADDRESSTYPE=0 THEN
+       PRIMEADDRESSDATA = PRIMEADDRESSDATA + QT + "co" + QT + ":" + QT + "US" + QT + ","
+      ELSE
+	   PRIMEADDRESSDATA = PRIMEADDRESSDATA + QT + "co" + QT + ":" + QT + NAME:COUNTRYCODE + QT + ","
+    END
+    FOR EACH NAME WITH NAME:TYPE = 1 AND (NAME:EXPIRATIONDATE = '--/--/--' OR
+    	                                  NAME:EXPIRATIONDATE > SYSTEMDATE)
+    DO
+      [I want first joint name here]
+      IF JOINTNAME="" THEN
+       DO
+        JOINTNAME = QT + "ln" + QT + ":" + QT + SEGMENT(NAME:LONGNAME,1,MAXCHARS) + QT + ","
+	    JOINTNAMEDATA = QT + "nt" + QT + ":" + QT + NAME:TITLE + QT + ","
+	    JOINTNAMEDATA = JOINTNAMEDATA + QT + "nf" + QT + ":" + QT + NAME:FIRST + QT + ","
+        JOINTNAMEDATA = JOINTNAMEDATA + QT + "nm" + QT + ":" + QT + SEGMENT(NAME:MIDDLE,1,1) + QT + ","
+	    JOINTNAMEDATA = JOINTNAMEDATA + QT + "nl" + QT + ":" + QT + NAME:LAST + QT + ","
+	    JOINTNAMEDATA = JOINTNAMEDATA + QT + "ns" + QT + ":" + QT + NAME:SUFFIX + QT + ","
+		
+		JOINTOTHERDATA1 = QT + "hp" + QT + ":" + QT + NAME:HOMEPHONE + QT + ","
+        JOINTOTHERDATA1 = JOINTOTHERDATA1 + QT + "wp" + QT + ":" + QT + NAME:WORKPHONE + QT + ","
+        JOINTOTHERDATA1 = JOINTOTHERDATA1 + QT + "mp" + QT + ":" + QT + NAME:MOBILEPHONE + QT + ","
+		
+	    JOINTOTHERDATA2 = QT + "l" + QT + ":" + QT + NAME:LICENSE + QT + ","
+        JOINTOTHERDATA2 = JOINTOTHERDATA2 + QT + "bd" + QT + ":" + QT + FORMAT("99/99/9999",NAME:BIRTHDATE) + QT + ","
+        JOINTOTHERDATA2 = JOINTOTHERDATA2  + QT + "mm" + QT + ":" + QT + NAME:MOTHERSMAIDENNAME + QT + ","
+        JOINTOTHERDATA2 = JOINTOTHERDATA2  + QT + "ssn" + QT + ":" + QT + NAME:SSN + QT + ","
+		
+		
+        IF NAME:STREET="" OR NAME:CITY="" OR NAME:STATE="" OR NAME:ZIPCODE="" THEN
+         DO
+          JOINTADDRESSDATA = PRIMEADDRESSDATA
+         END
+        ELSE
+         DO
+	      JOINTADDRESSDATA = QT + "str" + QT + ":" + QT + NAME:STREET + QT + ","
+          JOINTADDRESSDATA = JOINTADDRESSDATA + QT + "ea" + QT + ":" + QT + NAME:EXTRAADDRESS + QT + ","
+	      JOINTADDRESSDATA = JOINTADDRESSDATA + QT + "cty" + QT + ":" + QT + NAME:CITY + QT + ","
+	      JOINTADDRESSDATA = JOINTADDRESSDATA + QT + "st" + QT + ":" + QT + NAME:STATE + QT + ","
+	      JOINTADDRESSDATA = JOINTADDRESSDATA + QT + "z" + QT + ":" + QT + NAME:ZIPCODE + QT + ","
+          IF NAME:ADDRESSTYPE=0 THEN
+           JOINTADDRESSDATA = JOINTADDRESSDATA + QT + "co" + QT + ":" + QT + "US" + QT + ","
+          ELSE
+	       JOINTADDRESSDATA = JOINTADDRESSDATA + QT + "co" + QT + ":" + QT + NAME:COUNTRYCODE + QT + ","
+         END
+       END
+    END
+  END
+
+  
+  FOUNDCARD=FALSE
+  FOR ACCOUNT ACCOUNT:NUMBER
+   DO
+   
+   [Logic to look for shares with service codes if .FUND file indicates we should]  
+   FOR I=0 TO 99
+  	DO 
+  	 IF FUNDLOGIC(I)=2 THEN
+  	 DO
+  	   FOR EACH LOAN WITH ANYSERVICE(LOAN,SERVICECODE(I)) 
+  	   DO
+  	     SCSHARELOAN(I) = "L" + LOAN:ID
+  	   END
+  	   FOR EACH SHARE WITH ANYSERVICE(SHARE,SERVICECODE(I)) 
+  	   DO
+  	     SCSHARELOAN(I) = "S" + SHARE:ID
+  	   END
+  	 END 
+    END	       
+    [todo: Modify For Each Card call in GENERATEHTML procedure to
+	            Select card if Card Number is passed.
+		          If Card Number is not passed, then use existing logic.] 	          
+	  IF CARDNBR <> "" THEN
+	   DO
+	    FOR EACH CARD WITH CARD:NUMBER = CARDNBR
+	     DO
+	      CALL GETCARDINFO
+	     END
+	   END	
+	  ELSE
+	   DO          
+     [FOR EACH CARD WITH CARD:LOCATOR = @CARDLOC1] [<-- Uncomment and comment below line if running from card wizard]
+      FOR EACH CARD WITH (CARD:CLOSEDATE='-/-/-' OR CARD:CLOSEDATE > SYSTEMDATE) AND CARD:STATUS<>2
+       DO
+        CALL GETCARDINFO
+       END [For Card]
+     END [IF CARDNBR = "" THEN]
+   END [For Account Num]
+  IF FOUNDCARD=FALSE THEN
+  DO
+    POPUPMESSAGE(0,"No valid cards records found...")
+    TERMINATE
+  END
+/QRT-149]
+
+ FOR AI=1 TO AL
+  DO
+   HTMLVIEWLINE(ALLCARDS(AI))
+  END 
+  HTMLVIEWLINE("    </select>")
+  HTMLVIEWLINE("   </td>")
+  HTMLVIEWLINE("  <td id='PrinterTD'>Printer: ")
+  HTMLVIEWLINE("  <select id='printerSel' name='printerSel' onchange='popPrinterID();")
+  HTMLVIEWLINE(" schedPrinterStat(" + INTERVAL + "," + TIMEOUT + "," + "")
+  HTMLVIEWLINE("" + QT + URL + QT + "," )
+  HTMLVIEWLINE("" + QT + KEY + QT + ");")
+  HTMLVIEWLINE(" imagesReq(" + QT + URL  + QT + "," )
+  HTMLVIEWLINE("" + QT + IMGHEIGHT + QT)
+  HTMLVIEWLINE("" + "," + QT + IMGWIDTH + QT + "," + QT + BINPAIRING + QT)
+  HTMLVIEWLINE("" + "," + QT + BINLENGTH + QT + ");'")
+  HTMLVIEWLINE("></select></td>")
+  HTMLVIEWLINE("  </tr>")
+  HTMLVIEWLINE("  <tr><td>&nbsp;</td></tr>")
+  HTMLVIEWLINE("  <tr>")
+  HTMLVIEWLINE("   <td>Name:</td>")
+  HTMLVIEWLINE("   <td>") 
+  HTMLVIEWLINE("       <input type='text' id='name' maxlength='" + FORMAT("99",MAXCHARS) + "'")
+  HTMLVIEWLINE("        class='name' disabled>")
+  HTMLVIEWLINE("  </td>")
+  HTMLVIEWLINE("   <td id= 'backgnd' ")
+  HTMLVIEWLINE(" >  Background:")
+  HTMLVIEWLINE(" <input type='text' id='backID' name='backID'></td> ")
+  HTMLVIEWLINE("  </tr>")
+  HTMLVIEWLINE("  <tr>")
+  HTMLVIEWLINE("   <td align='top'>Name 2:</td>")
+  HTMLVIEWLINE("   <td> ")
+  HTMLVIEWLINE("      <input type='text' id='name2' class='name' maxlength='" + FORMAT("99",MAXCHARS) + "' disabled>")
+  HTMLVIEWLINE("   </td>")
+  HTMLVIEWLINE("    <td id='backgndfrm' ")
+  HTMLVIEWLINE("    colspan='2' rowspan='9' ")
+  HTMLVIEWLINE(">")
+  HTMLVIEWLINE("     <iframe id='imagesFrame' name='imagesFrame' class='imageFrame'></iframe></td>")
+  HTMLVIEWLINE("  </tr>")
+  HTMLVIEWLINE("  <tr>")
+  HTMLVIEWLINE("   <td>Exp Date:</td>")
+  HTMLVIEWLINE("   <td><input type='text' id='expDate' disabled></td>")
+  HTMLVIEWLINE("  </tr>")
+  HTMLVIEWLINE("  <tr ") 
+  HTMLVIEWLINE("  >")
+  HTMLVIEWLINE("   <td>Offset:</td>")
+  HTMLVIEWLINE("   <td><input type='text' id='offsetDef' disabled></td>")
+  HTMLVIEWLINE("  </tr>")
+  HTMLVIEWLINE("  <tr>")
+  HTMLVIEWLINE("   <td>")
+  HTMLVIEWLINE("     <input class='button' type='button' id='submitPIN' value='PIN Only'")
+  [IF REPIN = "FALSE" OR SEGMENT(CURRENTUSER,1,1) = "0" THEN] [*** ATFCU REPIN IN SEPARATE PROGRAM]
+    HTMLVIEWLINE("      style='display: none;' ")
+  HTMLVIEWLINE("      onmousedown='setPINMessage();' ")
+  HTMLVIEWLINE("        onclick='return getPIN(" + INTERVAL + "," + TIMEOUT + "," + "")
+  HTMLVIEWLINE("" + QT + URL + QT + "," )
+  HTMLVIEWLINE("" + QT + FORMAT("9999",SYSUSERNUMBER) + QT + "," )
+  HTMLVIEWLINE("" + QT + KEY + QT + "," )
+  HTMLVIEWLINE("" + QT + ACTIVATE + QT + ");'>")
+  HTMLVIEWLINE("   </td>")
+  HTMLVIEWLINE("   <td>")
+  HTMLVIEWLINE("     <input type='button' class='button' id='submitPrint' value='Print'")
+  IF SEGMENT(CURRENTUSER,3,3) = "0" THEN
+    HTMLVIEWLINE("      style='display: none;' ")
+  HTMLVIEWLINE("      onclick='return sendFullPrintRequest( ") 
+  HTMLVIEWLINE("" + QT + URL + QT + "," )
+  HTMLVIEWLINE("" + QT + FORMAT("9999",SYSUSERNUMBER)  + QT + "," )
+  HTMLVIEWLINE("" + QT + "0" + QT + "," )
+  HTMLVIEWLINE("" + QT + KEY + QT + "," + INTERVAL + "," + TIMEOUT + "," + QT + REQIMGSEL + QT + "," + QT + ACTIVATE + QT +");'>")
+  HTMLVIEWLINE("   </td>")
+  HTMLVIEWLINE("  <tr>")
+  HTMLVIEWLINE("   <td>")
+  HTMLVIEWLINE("     <input class='button' type='submit' id='finishFull' value='Finish' onClick='clearData()'")
+  HTMLVIEWLINE("      style='display: none;'> ")
+  HTMLVIEWLINE("     <input type='button' class='button' id='submitPINPrint' value='PIN & Print'")
+  IF PINPRINT = "FALSE" OR SEGMENT(CURRENTUSER,3,3) = "0" OR SEGMENT(CURRENTUSER,1,1) = "0" THEN
+    HTMLVIEWLINE("      style='display: none;' ")
+  HTMLVIEWLINE("      onmousedown='setPINMessage();' ")
+  HTMLVIEWLINE("      onclick='return sendFullPrintRequest( ") 
+  HTMLVIEWLINE("" + QT + URL + QT + "," )
+  HTMLVIEWLINE("" + QT + FORMAT("9999",SYSUSERNUMBER) + QT + "," )
+  HTMLVIEWLINE("" + QT + "1" + QT + "," )
+  HTMLVIEWLINE("" + QT + KEY + QT + "," + INTERVAL + "," + TIMEOUT + "," + QT + REQIMGSEL + QT + "," + QT + ACTIVATE + QT +");'>")
+  HTMLVIEWLINE("   </td>")
+
+  HTMLVIEWLINE("   </td>")
+  HTMLVIEWLINE("   <td><input type='button' class='button' id='cancel' value='Cancel' onClick='exitForm();")
+  HTMLVIEWLINE(" logInfo(" + QT + "Clicked Cancel" + QT + "," + QT + FORMAT("9999",SYSUSERNUMBER) + QT + ");'></td>")
+  HTMLVIEWLINE("  </tr>")
+  HTMLVIEWLINE("  <tr height='200'><td><input type='hidden' name='intervalID' id='intervalID'></td></tr>")
+  HTMLVIEWLINE("  <tr><td><input type='hidden' name='intervalPINID' id='intervalPrint'></td></tr>")
+  HTMLVIEWLINE("  <tr><td><input type='hidden' name='intervalPINID' id='intervalPINID'></td></tr>")
+  HTMLVIEWLINE("  <tr><td><input type='hidden' name='intervalBlink' id='intervalBlink'></td></tr>")
+  HTMLVIEWLINE("  <tr><td><input type='hidden' name='initID' id='initID'></td></tr>")
+  HTMLVIEWLINE("  <tr><td><input type='hidden' name='initIDJob' id='initIDJob'></td></tr>")
+  HTMLVIEWLINE("  <tr><td><input type='hidden' name='intervalIDJob' id='intervalIDJob'></td></tr>")
+  HTMLVIEWLINE("  <tr><td><input type='hidden' name='shareData' id='shareData' value='")
+  FOR I = 0 TO 99
+   DO
+    IF (SHAREDATA(I) <> "") THEN
+	DO
+	  FINDSTR  = "'"
+      REPLACESTR = "&#39;"
+      STARTSTR = SHAREDATA(I)
+      CALL FINDREPLACE
+      SHAREDATA(I) = STARTSTR
+	  HTMLVIEWLINE(SHAREDATA(I))
+	END
+  END
+  HTMLVIEWLINE("'></td></tr>")
+  HTMLVIEWLINE("</tbody>")
+  HTMLVIEWLINE("</table>")
+  HTMLVIEWLINE("</form>")
+  HTMLVIEWLINE("</body>")
+  HTMLVIEWDISPLAY
+
+END [Procedure GENERATEHTML]
+
+
+PROCEDURE GETJSCSSSCRIPT
+  FILEOPEN("REPGEN", FILENAME, "READ", FILENUMBER, FILEERROR)
+  IF (FILEERROR <> "") THEN
+  DO
+    POPUPMESSAGE(0, "Failed to open " + FILENAME)
+    TERMINATE
+  END [If]
+  WHILE FILEERROR = ""
+  DO
+    FILEREADLINE(FILENUMBER, FILETEXT, FILEERROR)
+    HTMLVIEWLINE(FILETEXT)
+  END [While]
+  FILECLOSE(FILENUMBER, FILEERROR)
+END  [Procedure GETJSCSSSCRIPT]
+
+
+PROCEDURE HANDLEHTMLINPUT
+[todo: Modify HANDLEHTMLINPUT procedure to
+       	 Force RETCOMMAND variable to UPPERCASE
+        Modify all evaluations of RETCOMMAND to evaluate against UPPERCASE.]
+
+  INPUTCOUNT = 0
+  WHILE (INPUTFORM(INPUTCOUNT) <> "EOD")
+  DO
+    INPUT=ENTERLINE(0)
+    INPUTCOUNT=INPUTCOUNT + 1
+    INPUTFORM(INPUTCOUNT) = INPUT
+    IF (CHARACTERSEARCH(INPUTFORM(INPUTCOUNT), "retCommand=") = 1) THEN
+    DO
+      RETCOMMAND = UPPERCASE( SEGMENT(INPUTFORM(INPUTCOUNT), CHARACTERSEARCH(INPUTFORM(INPUTCOUNT), "=") + 1, LENGTH(INPUTFORM(INPUTCOUNT))) )
+    END
+    ELSE
+    DO
+      THEFIELD=SEGMENT(INPUT,1,CHARACTERSEARCH(INPUT,"=")-1)
+      THEVALUE=SEGMENT(INPUT,CHARACTERSEARCH(INPUT,"=")+1,LENGTH(INPUT))
+      CALL READSCREEN
+    END [If]
+  END [While]
+END [Procedure HANDLEHTMLINPUT]
+
+
+PROCEDURE READSCREEN
+  IF THEFIELD = "cardSuffix" THEN CARDSUFFIX = THEVALUE
+  IF THEFIELD = "cardNumber" THEN CARDNUMBER = THEVALUE
+  IF THEFIELD = "cardLocator" THEN CARDLOCATOR = VALUE(THEVALUE)
+  IF THEFIELD = "offset" THEN OFFSET = VALUE(THEVALUE)
+  IF THEFIELD = "back" THEN IMAGEID = THEVALUE
+END [Procedure READSCREEN]
+
+
+[Procedure to read File CARDPRINTING.CFG]
+PROCEDURE GETCFGINFO
+  FILEOPEN("REPGEN",CFGFILENAME,"READ",FILENUMBER,FILEERROR)
+  IF FILEERROR<>"" THEN
+  DO
+    POPUPMESSAGE(2,"There was an error opening the Card Printing config file: "+FILEERROR)
+    FILECLOSE(FILENUMBER,FILEERROR)
+    TERMINATE
+  END
+  ELSE
+  DO
+    FILEREADLINE(FILENUMBER,CFGLINE,FILEERROR)
+    WHILE (FILEERROR="")
+    DO
+      TILDELOC  = CHARACTERSEARCH(CFGLINE,"~")
+      CFGLENGTH = LENGTH(CFGLINE)
+      [-- DETERMINE WHAT DATA IS BEING ACQUIRED --]
+      IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="EFTURL" THEN
+        URL = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="TIMEOUT" THEN
+        TIMEOUT = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="INTERVAL" THEN
+        INTERVAL = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="BRANCHLEVELKEY" THEN
+        BLK = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="MAXNAMECHARS" THEN
+        MAXCHARS = VALUE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="IMAGEHEIGHT" THEN
+        IMGHEIGHT = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="IMAGEWIDTH" THEN
+        IMGWIDTH = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="REPIN" THEN
+        REPIN = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="CREATECARDNOTE" THEN
+        CREATECARDNOTE = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="REQUIREIMAGESELECTION" THEN
+        REQIMGSEL = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="BINIMAGEPAIRING" THEN
+        BINPAIRING = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="PINPRINT" THEN
+        PINPRINT = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="FRONTENDLOGGING" THEN
+        FRONTENDLOGGING = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="ACTIVATE" THEN
+        ACTIVATE = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="SENDACTIVATIONDATAONACTIVATE" THEN [QRT-152]
+        SENDACTDATAACTIVATE = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="SENDACTIVATIONDATAONPIN" THEN [QRT-151]
+        SENDACTDATAPIN = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="ACTIVATIONACCOUNTNUMBERFORMAT" THEN [QRT-579]
+        ACCTNUMFORMAT = VALUE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+      ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="MISCIDRECORDTYPE" THEN [QRT-728]
+        MISCIDRECORDTYPE = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+	  ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="SHARECODE0" THEN 
+        SHARECODE0 = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+	  ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="SHARECODE1" THEN 
+        SHARECODE1 = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+	  ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="SHARECODE2" THEN 
+        SHARECODE2 = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+	  ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="SHARECODE3" THEN
+        SHARECODE3 = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+	  ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="USEPRIMEDATA" THEN
+        USEPRIMEDATA = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+	  ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="PINPADURL" THEN
+        PINPADURL = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+		
+      FILEREADLINE(FILENUMBER,CFGLINE,FILEERROR)
+    END [While]
+    FILECLOSE(FILENUMBER,FILEERROR)
+    IF FILEERROR<>"" THEN
+    DO
+      POPUPMESSAGE(2,"There was an error closing the Card Printing config file: "+FILEERROR)
+      TERMINATE
+    END [If FileError on Close]
+  END [If FileError on Open]
+END [Procedure]
+
+PROCEDURE GETKEY
+  FILEOPEN("DATA", KEYFILE, "READ", FILENUMBER, FILEERROR)
+  IF FILEERROR <> "" THEN
+  DO
+    POPUPMESSAGE(0, "Failed to open " + KEYFILE)
+    TERMINATE
+  END
+  FILEREADLINE(FILENUMBER, KEY, FILEERROR)
+  IF FILEERROR <> "" THEN
+  DO
+    POPUPMESSAGE(0, "Failure trying to read " + KEYFILE)
+    TERMINATE
+  END
+  FILECLOSE(FILENUMBER, FILEERROR)
+END   [ -- Procedure GETKEY -- ]
+
+PROCEDURE GETPRINTER
+  FILEOPEN("DATA", PRINTERFILE, "READ", FILENUMBER, FILEERROR)
+  IF FILEERROR <> "" THEN
+  DO
+    POPUPMESSAGE(0, "Failed to open " + PRINTERFILE)
+    TERMINATE
+  END
+  FILEREADLINE(FILENUMBER, PRINTERS, FILEERROR)
+  IF FILEERROR <> "" THEN
+  DO
+    POPUPMESSAGE(0, "Failure trying to read " + PRINTERFILE)
+    TERMINATE
+  END
+  FILECLOSE(FILENUMBER, FILEERROR)
+END   [ -- Procedure GETPRINTER -- ]
+
+
+PROCEDURE SAVECARDINFOACT
+
+ FMPERFORM REVISE CARD LOC CARDLOCATOR (0,0,FILEERROR)
+ DO
+   SET STATUS TO 1
+   SET INSTANTISSUE TO 1
+   SET PINOFFSET TO OFFSET
+   SET EFFECTIVEDATE TO SYSTEMDATE
+   SET IMAGEREFNUMBER TO IMAGEID
+   SET ACTIVEDATE TO SYSTEMDATE
+ END
+ IF FILEERROR<>"" THEN
+ DO
+   POPUPMESSAGE(0,FILEERROR)
+   TERMINATE 
+ END
+ ELSE
+ DO
+  IF CREATECARDNOTE = "TRUE" THEN
+  DO  
+    CARDNOTETXT(1) = "Instant Issued and activated " + FORMAT("99/99/9999", SYSTEMDATE) + " - " + FORMAT("99:99", SYSACTUALTIME)
+    CALL WRITECARDNOTE
+  END
+  POPUPMESSAGE (0, "Card " + CARDNUMBER + " " + CARDSUFFIX + " successfully issued,printed, and activated")
+  TERMINATE 
+ END 
+END
+
+PROCEDURE SAVECARDINFOPIN
+  FMPERFORM REVISE CARD LOC CARDLOCATOR (0,0,FILEERROR)
+  DO
+    SET PINOFFSET TO OFFSET
+  END
+  IF FILEERROR<>"" THEN
+  DO
+    POPUPMESSAGE(0,FILEERROR)
+    TERMINATE 
+  END
+  ELSE
+  DO
+    IF CREATECARDNOTE = "TRUE" THEN
+    DO  
+      CARDNOTETXT(1) = "PIN changed " + FORMAT("99/99/9999", SYSTEMDATE) + " - " + FORMAT("99:99", SYSACTUALTIME)
+      CALL WRITECARDNOTE
+    END
+    POPUPMESSAGE (0, "PIN Offset has successfully been generated and updated")
+    TERMINATE 
+  END 
+END
+
+
+PROCEDURE SAVECARDINFO
+  FMPERFORM REVISE CARD LOC CARDLOCATOR (0,0,FILEERROR)
+  DO
+    SET STATUS TO 1
+    SET INSTANTISSUE TO 1
+    SET PINOFFSET TO OFFSET
+    SET EFFECTIVEDATE TO SYSTEMDATE
+    SET IMAGEREFNUMBER TO IMAGEID
+  END
+  IF FILEERROR<>"" THEN
+  DO
+    POPUPMESSAGE(0,FILEERROR)
+    TERMINATE 
+  END
+  ELSE
+  DO
+    IF CREATECARDNOTE = "TRUE" THEN
+    DO  
+      CARDNOTETXT(1) = "Instant Issued" + FORMAT("99/99/9999", SYSTEMDATE) + " - " + FORMAT("99:99", SYSACTUALTIME)
+      CALL WRITECARDNOTE
+    END
+    POPUPMESSAGE (0, "Card " + CARDNUMBER + " " + CARDSUFFIX + " successfully issued and printed")
+    TERMINATE 
+  END 
+END
+
+
+PROCEDURE WRITECARDNOTE
+  CARDNOTETXT(2) = "Branch: " + FORMAT("9999", GETDATANUMBER(GETCONSOLEBRANCH, SYSCONSOLENUM))
+  CARDNOTETXT(3) = "User: " + FORMAT("9999", SYSUSERNUMBER) + " - " + CAPITALIZE(SYSUSERNAME(SYSUSERNUMBER))
+  FMPERFORM CREATE CARD LOC CARDLOCATOR NOTE BEFOREFIRST (0, 0, FMERROR)
+  DO
+    SET CODE TO VALUE(CARDNOTECODE)
+    SET TEXT:1 TO CARDNOTETXT(1)
+    SET TEXT:2 TO CARDNOTETXT(2)
+    SET TEXT:3 TO CARDNOTETXT(3)
+  END
+  IF FMERROR <> "" THEN
+    POPUPMESSAGE(0, "Error writing card note: " + FMERROR)
+END [Procedure WRITECARDNOTE]
+
+PROCEDURE FINDREPLACE
+  TEMPSTR=STARTSTR
+  WHILE CHARACTERSEARCH(TEMPSTR,FINDSTR)<>0
+  DO
+    IF CHARACTERSEARCH(TEMPSTR,FINDSTR) = 1 THEN
+      TEMPSTR = SEGMENT(TEMPSTR,2,LENGTH(TEMPSTR))
+    ELSE
+    DO
+      TMPSTR1 = SEGMENT(TEMPSTR,1,(CHARACTERSEARCH(TEMPSTR,FINDSTR))-1)+REPLACESTR    [1ST PIECE ]
+      TMPSTR2 = SEGMENT(TEMPSTR,(CHARACTERSEARCH(TEMPSTR,FINDSTR))+1,LENGTH(TEMPSTR)) [2ND PIECE ]
+      TEMPSTR = TMPSTR1 + TMPSTR2
+    END [of else clause]
+  END [of while loop]
+  STARTSTR=TEMPSTR  
+END [of procedure]
+
+PROCEDURE LOADCARDTYPE
+[FIXME:]FILEOPEN("REPGEN", "CARDPRINTING.TYPE", "READ", FILENUMBER, FILEERROR) [ADD: 31 55 6]
+  I=0
+  IF FILEERROR= "" THEN
+  DO
+    WHILE FILEERROR= ""
+    DO
+      FILEREAD(FILENUMBER, 2, TEMP, FILEERROR)
+      EPISYSTYPE(I)=VALUE(TEMP)
+      FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+      FILEREAD(FILENUMBER, 2, TEMP, FILEERROR)
+      EFTTYPE(I)=VALUE(TEMP)
+      FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+      FILEREADLINE(FILENUMBER, TEMP, FILEERROR)
+      EFTBINLENGTH(I)=VALUE(TEMP)
+      I=I+1
+    END
+    FILECLOSE(FILENUMBER, FILEERROR)
+  END
+END   [ -- Procedure LOADCARDTYPE -- ]
+
+PROCEDURE LOADCARDFUND
+  FILEOPEN("REPGEN", "CARDPRINTING.FUND", "READ", FILENUMBER, FILEERROR)
+  I=0
+  IF FILEERROR= "" THEN
+  DO
+    WHILE FILEERROR= ""
+    DO
+      FILEREAD(FILENUMBER, 2, TEMP, FILEERROR)
+      FUNDTYPE(I)=VALUE(TEMP)
+      FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+      FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+      FUNDLOGIC(I)=VALUE(TEMP)
+      FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+	  FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+      FUNDACCT(I)=VALUE(TEMP)
+	  FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+      FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+      ALTFUNDACCT(I)=VALUE(TEMP)
+	  FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+      FILEREADLINE(FILENUMBER, TEMP, FILEERROR)
+      SERVICECODE(I)=VALUE(TEMP)
+      I=I+1
+    END
+    FILECLOSE(FILENUMBER, FILEERROR)
+  END
+END   [ -- Procedure LOADCARDFUND -- ]
+
+PROCEDURE CHECKUSERFILE
+  FILEOPEN("DATA", USERAUTHFILE, "READ", FILENUMBER, FILEERROR)
+  IF FILEERROR = "" THEN
+  DO
+    WHILE FILEERROR = ""
+    DO
+      FILEREAD(FILENUMBER, 4, USERNUM, FILEERROR)
+      FILEREAD(FILENUMBER, 1, TEMP, FILEERROR) [First Comma]
+      FILEREADLINE(FILENUMBER, USERROLE, FILEERROR)
+      IF USERNUM = FORMAT("9999",SYSUSERNUMBER) THEN
+      DO
+        CURRENTUSER = USERROLE
+        FILEERROR="FOUND"
+      END
+    END
+    FILECLOSE(FILENUMBER, FILEERROR)
+  END
+END   [ -- Procedure CHECKUSERFILE -- ]
+
+[QRT-149]
+PROCEDURE GETCARDINFO
+ FOUNDCARD=TRUE 
+[bug-OPTIONVALUE = "{" + QT + "ed" + QT + ":" + QT + FORMAT("99",MONTH(CARD:EXPIRATIONDATE-1)) + SEGMENT(FORMAT("9999",FULLYEAR(CARD:EXPIRATIONDATE-1)),3,4) + QT + ","]
+ OPTIONVALUE=FORMAT("99",MONTH(CARD:EXPIRATIONDATE-1))+""+ SEGMENT(FORMAT("9999",FULLYEAR(CARD:EXPIRATIONDATE-1)),3,4)
+ 
+[bug-OPTIONVALUE = OPTIONVALUE + QT + "po" + QT + ":" + QT + FORMAT("9999",CARD:PINOFFSET) + QT + ","]
+[OPTIONVALUE=OPTIONVALUE+FORMAT("9999",CARD:PINOFFSET)] [*** ATFCU Removed]
+ OPTIONVALUE=OPTIONVALUE+"0000"                         [*** ATFCU Added Always ask for new PIN]   
+  
+ FOR I=0 TO 99
+  DO
+   IF (CARD:TYPE = EPISYSTYPE(I)) THEN
+    DO
+	   [OPTIONVALUE = OPTIONVALUE + QT + "et" + QT + ":" + QT + FORMAT("99",EFTTYPE(I))+ QT + ","]
+	   [OPTIONVALUE = OPTIONVALUE + QT + "ebl" + QT + ":" + QT + FORMAT("99",EFTBINLENGTH(I)) + QT + ","]
+     OPTIONVALUE=OPTIONVALUE+FORMAT("99",EFTTYPE(I))
+     OPTIONVALUE=OPTIONVALUE+FORMAT("99",EFTBINLENGTH(I))	 
+     I=101
+    END
+  END
+ [IF I = 100 then it looped through all and did not find a match...not good]
+ IF I=100 THEN
+  DO
+   POPUPMESSAGE(0, "You have some Episys card types on this account that have not been set up in CARDPRINTING.TYPE. Application will close!")
+   TERMINATE
+  END
+  
+  
+  IF ACTIVATE = "TRUE" THEN
+  DO
+    J=0
+    FOR I=0 TO 99
+    DO
+     IF (CARD:TYPE = FUNDTYPE(I)) THEN
+      DO
+	     J=I [Save this value to use later]
+       I=101
+      END
+    END
+   [IF I = 100 then it looped through all and did not find a match...not good]
+   IF I=100 THEN
+    DO
+     POPUPMESSAGE(0, "You have some Episys card types on this account that have not been set up in CARDPRINTING.FUND. Application will close!")
+     TERMINATE
+    END
+ END [IF ACTIVATE = TRUE]
+[todo: Modify GETCARDINFO to
+	        Set LNAME variable to name passed.
+		      If Name is not passed then use existing logic.]  	      		      
+ IF LNAME <> "" THEN
+  DO
+   IF CARD:NAMETYPE= 0 THEN
+    DO
+     [LNAME=PRIMENAME]
+     NAMEINFO = PRIMENAMEDATA
+     PHONEINFO = PRIMEOTHERDATA1
+     OTHERNAMEINFO = PRIMEOTHERDATA2
+     ADDRINFO = PRIMEADDRESSDATA
+    END
+   ELSE IF CARD:NAMETYPE=1 THEN
+    DO
+     [LNAME=JOINTNAME]
+     NAMEINFO = JOINTNAMEDATA
+     IF USEPRIMEDATA = "TRUE" THEN
+     DO
+       PHONEINFO = PRIMEOTHERDATA1
+       OTHERNAMEINFO = PRIMEOTHERDATA2
+       ADDRINFO = PRIMEADDRESSDATA
+     END
+    ELSE
+     DO
+       PHONEINFO = JOINTOTHERDATA1
+       OTHERNAMEINFO = JOINTOTHERDATA2
+       ADDRINFO = JOINTADDRESSDATA
+     END
+    END
+   ELSE IF CARD:NAMETYPE = 2 THEN
+    DO
+     FOR EACH CARD NAME WITH CARD NAME:EXPIRATIONDATE = '--/--/--' OR
+                             CARD NAME:EXPIRATIONDATE > SYSTEMDATE
+      DO
+       [If there are multiples, I just want first name record]
+       IF LNAME="" THEN 
+        DO       
+  	   LNAME = QT + "ln" + QT + ":" + QT + SEGMENT(CARD NAME:LONGNAME,1,MAXCHARS) + QT + ","
+  	   
+  	   NAMEINFO = QT + "nt" + QT + ":" + QT + CARD NAME:TITLE + QT + ","
+  	   NAMEINFO = NAMEINFO + QT + "nf" + QT + ":" + QT + CARD NAME:FIRST + QT + ","
+         NAMEINFO = NAMEINFO + QT + "nm" + QT + ":" + QT + SEGMENT(CARD NAME:MIDDLE,1,1) + QT + ","
+  	   NAMEINFO = NAMEINFO + QT + "nl" + QT + ":" + QT + CARD NAME:LAST + QT + ","
+  	   NAMEINFO = NAMEINFO + QT + "ns" + QT + ":" + QT + CARD NAME:SUFFIX + QT + ","
+  	   
+  	   IF USEPRIMEDATA = "TRUE" THEN
+  	   DO
+  	     PHONEINFO = PRIMEOTHERDATA1
+           OTHERNAMEINFO = PRIMEOTHERDATA2
+           ADDRINFO = PRIMEADDRESSDATA
+  	   END 
+  	  ELSE
+  	   DO
+  	     PHONEINFO = QT + "hp" + QT + ":" + QT + CARD NAME:HOMEPHONE + QT + ","
+           PHONEINFO = PHONEINFO + QT + "wp" + QT + ":" + QT + CARD NAME:WORKPHONE + QT + ","
+           PHONEINFO = PHONEINFO + QT + "mp" + QT + ":" + QT + CARD NAME:MOBILEPHONE + QT + ","
+  
+           OTHERNAMEINFO = QT + "l" + QT + ":" + QT + CARD NAME:LICENSE + QT + ","
+           OTHERNAMEINFO = OTHERNAMEINFO + QT + "bd" + QT + ":" + QT + FORMAT("99/99/9999",CARD NAME:BIRTHDATE) + QT + ","
+           OTHERNAMEINFO = OTHERNAMEINFO  + QT + "mm" + QT + ":" + QT + CARD NAME:MOTHERSMAIDENNAME + QT + ","
+           OTHERNAMEINFO = OTHERNAMEINFO  + QT + "ssn" + QT + ":" + QT + CARD NAME:SSN + QT + ","
+  
+           IF CARD NAME:STREET="" OR CARD NAME:CITY="" OR CARD NAME:STATE="" OR CARD NAME:ZIPCODE="" THEN
+           DO
+             ADDRINFO = PRIMEADDRESSDATA
+           END
+           ELSE
+           DO
+  		   ADDRINFO = QT + "str" + QT + ":" + QT + CARD NAME:STREET + QT + ","
+             ADDRINFO = ADDRINFO + QT + "ea" + QT + ":" + QT + CARD NAME:EXTRAADDRESS + QT + ","
+  	       ADDRINFO = ADDRINFO + QT + "cty" + QT + ":" + QT + CARD NAME:CITY + QT + ","
+  	       ADDRINFO = ADDRINFO + QT + "st" + QT + ":" + QT + CARD NAME:STATE + QT + ","
+  	       ADDRINFO = ADDRINFO + QT + "z" + QT + ":" + QT + CARD NAME:ZIPCODE + QT + ","
+             IF CARD NAME:ADDRESSTYPE=0 THEN
+              ADDRINFO = ADDRINFO + QT + "co" + QT + ":" + QT + "US" + QT + ","
+             ELSE
+  	        ADDRINFO = ADDRINFO + QT + "co" + QT + ":" + QT + CARD NAME:COUNTRYCODE + QT + ","
+            END
+          END
+  	   END [IF PRIMEDATA]
+       END
+    END  
+  END
+ ELSE
+  DO
+   IF CARD:NAMETYPE= 0 THEN
+    DO
+     LNAME=PRIMENAME
+     NAMEINFO = PRIMENAMEDATA
+     PHONEINFO = PRIMEOTHERDATA1
+     OTHERNAMEINFO = PRIMEOTHERDATA2
+     ADDRINFO = PRIMEADDRESSDATA
+    END
+   ELSE IF CARD:NAMETYPE=1 THEN
+    DO
+     LNAME=JOINTNAME
+     NAMEINFO = JOINTNAMEDATA
+     IF USEPRIMEDATA = "TRUE" THEN
+     DO
+       PHONEINFO = PRIMEOTHERDATA1
+       OTHERNAMEINFO = PRIMEOTHERDATA2
+       ADDRINFO = PRIMEADDRESSDATA
+     END
+    ELSE
+     DO
+       PHONEINFO = JOINTOTHERDATA1
+       OTHERNAMEINFO = JOINTOTHERDATA2
+       ADDRINFO = JOINTADDRESSDATA
+     END
+    END
+   ELSE IF CARD:NAMETYPE = 2 THEN
+    DO
+     FOR EACH CARD NAME WITH CARD NAME:EXPIRATIONDATE = '--/--/--' OR
+                             CARD NAME:EXPIRATIONDATE > SYSTEMDATE
+      DO
+       [If there are multiples, I just want first name record]
+       IF LNAME="" THEN 
+        DO       
+  	   LNAME = QT + "ln" + QT + ":" + QT + SEGMENT(CARD NAME:LONGNAME,1,MAXCHARS) + QT + ","
+  	   
+  	   NAMEINFO = QT + "nt" + QT + ":" + QT + CARD NAME:TITLE + QT + ","
+  	   NAMEINFO = NAMEINFO + QT + "nf" + QT + ":" + QT + CARD NAME:FIRST + QT + ","
+         NAMEINFO = NAMEINFO + QT + "nm" + QT + ":" + QT + SEGMENT(CARD NAME:MIDDLE,1,1) + QT + ","
+  	   NAMEINFO = NAMEINFO + QT + "nl" + QT + ":" + QT + CARD NAME:LAST + QT + ","
+  	   NAMEINFO = NAMEINFO + QT + "ns" + QT + ":" + QT + CARD NAME:SUFFIX + QT + ","
+  	   
+  	   IF USEPRIMEDATA = "TRUE" THEN
+  	   DO
+  	     PHONEINFO = PRIMEOTHERDATA1
+           OTHERNAMEINFO = PRIMEOTHERDATA2
+           ADDRINFO = PRIMEADDRESSDATA
+  	   END 
+  	   ELSE
+  	   DO
+  	     PHONEINFO = QT + "hp" + QT + ":" + QT + CARD NAME:HOMEPHONE + QT + ","
+           PHONEINFO = PHONEINFO + QT + "wp" + QT + ":" + QT + CARD NAME:WORKPHONE + QT + ","
+           PHONEINFO = PHONEINFO + QT + "mp" + QT + ":" + QT + CARD NAME:MOBILEPHONE + QT + ","
+  
+           OTHERNAMEINFO = QT + "l" + QT + ":" + QT + CARD NAME:LICENSE + QT + ","
+           OTHERNAMEINFO = OTHERNAMEINFO + QT + "bd" + QT + ":" + QT + FORMAT("99/99/9999",CARD NAME:BIRTHDATE) + QT + ","
+           OTHERNAMEINFO = OTHERNAMEINFO  + QT + "mm" + QT + ":" + QT + CARD NAME:MOTHERSMAIDENNAME + QT + ","
+           OTHERNAMEINFO = OTHERNAMEINFO  + QT + "ssn" + QT + ":" + QT + CARD NAME:SSN + QT + ","
+  
+           IF CARD NAME:STREET="" OR CARD NAME:CITY="" OR CARD NAME:STATE="" OR CARD NAME:ZIPCODE="" THEN
+           DO
+             ADDRINFO = PRIMEADDRESSDATA
+           END
+           ELSE
+           DO
+  		   ADDRINFO = QT + "str" + QT + ":" + QT + CARD NAME:STREET + QT + ","
+             ADDRINFO = ADDRINFO + QT + "ea" + QT + ":" + QT + CARD NAME:EXTRAADDRESS + QT + ","
+  	       ADDRINFO = ADDRINFO + QT + "cty" + QT + ":" + QT + CARD NAME:CITY + QT + ","
+  	       ADDRINFO = ADDRINFO + QT + "st" + QT + ":" + QT + CARD NAME:STATE + QT + ","
+  	       ADDRINFO = ADDRINFO + QT + "z" + QT + ":" + QT + CARD NAME:ZIPCODE + QT + ","
+             IF CARD NAME:ADDRESSTYPE=0 THEN
+              ADDRINFO = ADDRINFO + QT + "co" + QT + ":" + QT + "US" + QT + ","
+             ELSE
+  	        ADDRINFO = ADDRINFO + QT + "co" + QT + ":" + QT + CARD NAME:COUNTRYCODE + QT + ","
+            END
+          END
+  	   END [IF PRIMEDATA]
+       END
+    END
+  END
+
+  OPTIONVALUE = OPTIONVALUE + LNAME
+  OPTIONVALUE1 = QT + "ee" + QT + ":" + QT + SEGMENT(CARD:EXTRAEMBOSS,1,MAXCHARS) + QT + ","
+  OPTIONVALUE1 = OPTIONVALUE1 + QT + "loc" + QT + ":" + QT + FORMAT("999999999",CARD:LOCATOR) + QT + ","
+  OPTIONVALUE1 = OPTIONVALUE1 + QT + "cp" + QT + ":" + QT + CARD:PREVNUMBER + QT + ","
+  OPTIONVALUE1 = OPTIONVALUE1 + QT + "ic" + QT + ":" + QT + FORMAT("999",CARD:ISSUECODE) + QT + ","
+  
+ IF CARD:STATUS=0 THEN
+  OPTIONVALUE1 = OPTIONVALUE1 + QT + "stat" + QT + ":" + QT + "N" + QT + ","
+ ELSE
+  OPTIONVALUE1 = OPTIONVALUE1 + QT + "stat" + QT + ":" + QT + "R" + QT + ","
+ 
+ OTHERNAMEINFO = OTHERNAMEINFO + QT + "id" + QT + ":" + QT + FORMAT("99/99/9999",CARD:ISSUEDATE) + QT + ","
+ OTHERNAMEINFO = OTHERNAMEINFO + QT + "effd" + QT + ":" + QT + FORMAT("99/99/9999",CARD:EFFECTIVEDATE) + QT + ","
+ 
+ FUNDSL = ""
+ CARDINFO = ""
+ 
+ IF ACTIVATE = "TRUE" THEN
+   CALL GETFUNDINGACCT
+  
+
+ FOR EACH CARD ACCESS WITH (CARD ACCESS:IDTYPE=0 OR CARD ACCESS:IDTYPE=1) AND
+                           CARD ACCESS:ACCOUNTNUMBER = ACCOUNT:NUMBER AND
+						   CARD ACCESS:ID <> FUNDSL
+  DO
+   IF CARDINFO = "" THEN
+      CARDINFO = QT + "ci" + QT + ":" + QT
+   IF CARD ACCESS:IDTYPE=0 THEN
+    CARDINFO = CARDINFO + "S" + CARD ACCESS:ID  + ","
+   ELSE 
+    CARDINFO = CARDINFO + "L" + CARD ACCESS:ID  + ","
+  END
+ 
+
+ IF CARDINFO = "" THEN
+    CARDINFO =  QT + "ci" + QT + ":" + QT
+
+ IF CARD:CREDITCARDID<>"" AND CARD:CREDITCARDID<>FUNDSL THEN
+   CARDINFO = CARDINFO + "L" + CARD:CREDITCARDID + ","
+ IF CARD:CHKID<>""  AND CARD:CHKID<>FUNDSL  THEN
+   CARDINFO = CARDINFO + "S" + CARD:CHKID + ","
+ IF CARD:SAVID<>""  AND CARD:SAVID<>FUNDSL  THEN
+   CARDINFO = CARDINFO + "S" + CARD:SAVID + ","
+ IF CARD:MISCID:1<>""  AND CARD:MISCID:1<>FUNDSL  THEN
+   CARDINFO = CARDINFO + MISCIDRECORDTYPE + CARD:MISCID:1 + ","
+ IF CARD:MISCID:2<>""  AND CARD:MISCID:2<>FUNDSL THEN
+   CARDINFO = CARDINFO + MISCIDRECORDTYPE + CARD:MISCID:2 + ","
+ IF CARD:MISCID:3<>""  AND CARD:MISCID:3<>FUNDSL  THEN
+   CARDINFO = CARDINFO + MISCIDRECORDTYPE + CARD:MISCID:3 + ","
+  
+ CARDINFO = CARDINFO + QT + "}"
+
+ FINDSTR  = "'"
+ REPLACESTR = "&#39;"
+ STARTSTR = OPTIONVALUE
+ CALL FINDREPLACE
+ OPTIONVALUE = STARTSTR
+ 
+ STARTSTR = OPTIONVALUE1
+ CALL FINDREPLACE
+ OPTIONVALUE1 = STARTSTR
+    
+ STARTSTR = NAMEINFO
+ CALL FINDREPLACE
+ NAMEINFO = STARTSTR
+
+ STARTSTR = OTHERNAMEINFO
+ CALL FINDREPLACE
+ OTHERNAMEINFO = STARTSTR
+ 
+ STARTSTR = ADDRINFO
+ CALL FINDREPLACE
+ ADDRINFO = STARTSTR
+ 
+ STARTSTR = CARDINFO
+ CALL FINDREPLACE
+ CARDINFO = STARTSTR
+ 
+ HTMLVIEWLINE(" <option value='"+ OPTIONVALUE)
+ HTMLVIEWLINE(OPTIONVALUE1)
+ HTMLVIEWLINE(NAMEINFO)
+ HTMLVIEWLINE(PHONEINFO)
+ HTMLVIEWLINE(OTHERNAMEINFO)
+ HTMLVIEWLINE(ADDRINFO)
+ HTMLVIEWLINE(CARDINFO)
+ HTMLVIEWLINE("'")
+ IF CARD:SUFFIX="" THEN
+  HTMLVIEWLINE(">"+CARD:NUMBER+ "</option>")
+ ELSE
+  HTMLVIEWLINE(">"+CARD:NUMBER+ " " + FORMAT("99",VALUE(CARD:SUFFIX)) + "</option>")
+END
+
+PROCEDURE DEBUGSCREEN
+ HTMLVIEWOPEN
+ HTMLVIEWLINE("<html><head><title>Form Results</title>")
+ HTMLVIEWLINE("<style>")
+ HTMLVIEWLINE("body    {FONT: 19PX ARIAL, SANS-SERIF;}")
+ HTMLVIEWLINE("table   {FONT: 19PX ARIAL, SANS-SERIF;}")
+ HTMLVIEWLINE(".grayrow {background-color: #F5F5F5;}")
+ HTMLVIEWLINE(".whiterow {background-color: #FFFFFF;}")
+ HTMLVIEWLINE("</style>")
+ HTMLVIEWLINE("</head>")
+ HTMLVIEWLINE("<body bgcolor='white'>")
+ HTMLVIEWLINE("<h3>Form Results</h3><hr>")
+ HTMLVIEWLINE("<table>")
+ HTMLVIEWLINE("<tr><td><h2><b><u>THEFIELD</u></b></h2><td><td><h2><b><u>THEVALUE</u></b></h2>")
+ FOR I=1 TO INPUTCOUNT
+  DO
+   HTMLVIEWLINE("<tr><td>"+SEGMENT(INPUTFORM(I),1,CHARACTERSEARCH(INPUTFORM(I),"=")-1)+
+                "<td>=<td>"+SEGMENT(INPUTFORM(I),CHARACTERSEARCH(INPUTFORM(I),"=")+1,LENGTH(INPUTFORM(I))))
+  END
+ HTMLVIEWLINE("</BODY></HTML>")
+ HTMLVIEWDISPLAY
+END
+
+[VCR-1759]
+PROCEDURE GETFUNDINGACCT
+ IF FUNDLOGIC(J)=0 THEN [Card IDs]
+ DO
+ 
+   IF FUNDACCT(J)=1 THEN
+   DO
+     IF CARD:SAVID<>"" THEN
+	 DO
+        CARDINFO = QT + "ci" + QT + ":" + QT + "S" + CARD:SAVID + ","
+		FUNDSL=CARD:SAVID
+	 END
+   END
+   ELSE IF FUNDACCT(J)=2 THEN 
+   DO
+     IF CARD:CHKID<>"" THEN
+	 DO
+       CARDINFO = QT + "ci" + QT + ":" + QT + "S" + CARD:CHKID + ","
+	   FUNDSL=CARD:CHKID
+	 END
+   END
+   ELSE IF FUNDACCT(J)=3 THEN 
+   DO
+     IF CARD:LOCID<>"" THEN
+	 DO
+       CARDINFO = QT + "ci" + QT + ":" + QT + "S" + CARD:LOCID + ","
+	   FUNDSL=CARD:LOCID
+	 END
+   END
+   ELSE IF FUNDACCT(J)=4 THEN 
+   DO
+     IF CARD:CREDITCARDID<>"" THEN
+	 DO
+       CARDINFO = QT + "ci" + QT + ":" + QT + "S" + CARD:CREDITCARDID + ","
+	   FUNDSL=CARD:CREDITCARDID
+	 END
+   END
+   
+   IF FUNDSL="" THEN [Nothing found so try alternate]
+   DO
+     IF ALTFUNDACCT(J)=1 THEN
+     DO
+       IF CARD:SAVID<>"" THEN
+	   DO
+         CARDINFO = QT + "ci" + QT + ":" + QT + "S" + CARD:SAVID + ","
+		 FUNDSL=CARD:SAVID
+	   END
+     END
+     ELSE IF ALTFUNDACCT(J)=2 THEN 
+     DO
+       IF CARD:CHKID<>"" THEN
+	   DO
+         CARDINFO = QT + "ci" + QT + ":" + QT + "S" + CARD:CHKID + ","
+		 FUNDSL=CARD:CHKID
+	   END
+     END
+     ELSE IF ALTFUNDACCT(J)=3 THEN 
+     DO
+       IF CARD:LOCID<>"" THEN
+	   DO
+         CARDINFO = QT + "ci" + QT + ":" + QT + "S" + CARD:LOCID + ","
+		 FUNDSL=CARD:LOCID
+	   END
+     END
+     ELSE IF ALTFUNDACCT(J)=4 THEN 
+     DO
+       IF CARD:CREDITCARDID<>"" THEN
+	   DO
+         CARDINFO = QT + "ci" + QT + ":" + QT + "S" + CARD:CREDITCARDID + ","
+		 FUNDSL=CARD:CREDITCARDID
+	   END
+     END
+   END [CARDINFO=""]
+ END [FUNDLOGIC(J)=0]
+ 
+ ELSE IF FUNDLOGIC(J)=1 THEN [Access Records]
+ DO
+    FOR EACH CARD ACCESS WITH CARD ACCESS:ACCESSTYPE = FUNDACCT(J)-1 AND
+                           CARD ACCESS:ACCOUNTNUMBER = ACCOUNT:NUMBER
+    DO
+	  IF CARDINFO = "" THEN
+	  DO
+        CARDINFO = QT + "ci" + QT + ":" + QT
+		IF CARD ACCESS:IDTYPE=0 THEN
+	      CARDINFO = CARDINFO + "S" +  CARD ACCESS:ID + ","
+		ELSE
+		  CARDINFO = CARDINFO + "L" +  CARD ACCESS:ID + ","
+	    FUNDSL = CARD ACCESS:ID
+	  END
+    END
+    IF FUNDSL="" THEN [Nothing found so try alternate]
+    DO
+	  FOR EACH CARD ACCESS WITH CARD ACCESS:ACCESSTYPE = ALTFUNDACCT(J)-1 AND
+                           CARD ACCESS:ACCOUNTNUMBER = ACCOUNT:NUMBER
+       DO
+	    IF CARDINFO = "" THEN
+	    DO
+          CARDINFO = QT + "ci" + QT + ":" + QT
+	      IF CARD ACCESS:IDTYPE=0 THEN
+	        CARDINFO = CARDINFO + "S" +  CARD ACCESS:ID + ","
+		  ELSE
+		    CARDINFO = CARDINFO + "L" +  CARD ACCESS:ID + ","
+	      FUNDSL = CARD ACCESS:ID
+	    END
+       END
+	 END
+  END [FUNDLOGIC(J)=1]
+   
+ELSE IF FUNDLOGIC(J)=2 THEN [Service Code]
+DO
+  CARDINFO = QT + "ci" + QT + ":" + QT + SCSHARELOAN(J) + ","
+  FUNDSL = SEGMENT(SCSHARELOAN(J),2,LENGTH(SCSHARELOAN(J)))
+END [FUNDLOGIC(J)=2]
+ 
+
+END
+
+PROCEDURE CHECKACCTINFO
+ FOR ACCOUNT ACCOUNT:NUMBER
+  DO
+   FOR EACH NAME WITH NAME:TYPE = 0
+    DO
+     PRIMENAME = NAME:LONGNAME
+    END
+   FOR EACH NAME WITH NAME:TYPE = 1
+    DO
+     [I want first joint name here]
+     IF JOINTNAME="" THEN JOINTNAME = NAME:LONGNAME
+    END
+  END
+ PRIMENAME = SEGMENT(PRIMENAME,1,MAXCHARS)
+ JOINTNAME = SEGMENT(JOINTNAME,1,MAXCHARS)
+ FOUNDCARD=FALSE
+ FOR ACCOUNT ACCOUNT:NUMBER
+  DO
+   [FOR EACH CARD WITH CARD:LOCATOR = @CARDLOC1] [<-- Uncomment and comment below line if running from card wizard]
+   [FOR EACH CARD WITH CARD:CLOSEDATE='-/-/-' AND CARD:STATUS<>2] [*** ATFCU Remmoved]
+   FOR EACH CARD WITH CARD:NUMBER=CARDNBR        [*** ATFCU look for card selected in instant issue]
+    DO
+     FOUNDCARD=TRUE
+     OPTIONVALUE=FORMAT("99",MONTH(CARD:EXPIRATIONDATE-1))+""+ SEGMENT(FORMAT("9999",FULLYEAR(CARD:EXPIRATIONDATE-1)),3,4)
+     [OPTIONVALUE=OPTIONVALUE+FORMAT("9999",CARD:PINOFFSET)] [*** ATFCU Removed]
+     OPTIONVALUE=OPTIONVALUE+"0000"                          [*** ATFCU Added Always ask for new PIN]
+     
+     FOR I = 0 TO 99
+      DO
+       IF (CARD:TYPE = EPISYSTYPE(I)) THEN
+        DO
+         OPTIONVALUE=OPTIONVALUE+FORMAT("99",EFTTYPE(I))
+         OPTIONVALUE=OPTIONVALUE+FORMAT("99",EFTBINLENGTH(I))
+         I=100
+        END
+      END
+     [IF I = 100 then it looped through all and did not find a match...not good]
+     IF (I=100) THEN
+      DO
+       POPUPMESSAGE(0, "You have some Episys card types on this account that have not been set up in CARDPRINTING.TYPE. Application will close!")
+       RETCOMMAND="close"
+      END
+    [LNAME=""                                              [*** ATFCU Removed because name is passed]
+    IF CARD:NAMETYPE= 0 THEN LNAME=PRIMENAME
+    ELSE IF CARD:NAMETYPE=1 THEN LNAME=JOINTNAME
+    ELSE IF CARD:NAMETYPE = 2 THEN
+     DO
+      FOR EACH CARD NAME
+       DO
+        [I want first name record]
+        IF LNAME="" THEN LNAME=CARD NAME:LONGNAME
+       END
+     END
+    LNAME = SEGMENT(LNAME,1,MAXCHARS)]
+    OPTIONVALUE=OPTIONVALUE+ " " + LNAME + "~" + SEGMENT(CARD:EXTRAEMBOSS,1,MAXCHARS)
+    OPTIONVALUE=OPTIONVALUE+ "@" + FORMAT("999999999",CARD:LOCATOR)   
+    FINDSTR  = "'"
+    REPLACESTR = "&#39;"
+    STARTSTR = OPTIONVALUE
+    CALL FINDREPLACE
+    OPTIONVALUE = STARTSTR
+    AL=AL+1
+    ALLCARDS(AL)="<option value='"+ OPTIONVALUE + "'"
+    IF CARD:SUFFIX="" THEN ALLCARDS(AL)=ALLCARDS(AL)+">"+CARD:NUMBER+ "</option>"
+    ELSE
+     ALLCARDS(AL)=ALLCARDS(AL)+">"+CARD:NUMBER+ " " + FORMAT("99",VALUE(CARD:SUFFIX)) + "</option>"
+   END [For Card]
+  END [For Account Num]
+ IF FOUNDCARD=FALSE THEN
+  DO
+   POPUPMESSAGE(0,"No valid cards records found...")
+   RETCOMMAND="close"
+  END
+END

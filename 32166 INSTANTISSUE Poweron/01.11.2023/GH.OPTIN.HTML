@@ -1,0 +1,711 @@
+[GH.OPTIN.HTML - Script to Opt-In/Opt-Out Members]
+[06/17/10 GH Modified to allow Reprints]
+[07/16/10 GH Added changed for program to run from VCC.APP.DIALOG and ATM.APP.DIALOG]
+[03/13/12 BDW  Updated NSF fee amount from $24 to $27.50]
+[10/29/12 GH Added ability for businesses to Opt-Out per Pam]
+[06/25/13 GH Removed the ability for businesses to Opt-Out per Pam]
+[07/17/14 GH Added Approved Online to options and FM only for no response required.]
+[10/27/14 GH Modified to allow Trustee and Rep PAyee to receive new cards]
+[02/09/16 GH Added UPPERCASE to tracking comparisson because font case was causing a mismatch]
+
+SUBROUTINE DEMAND WINDOWS
+
+TARGET=ACCOUNT
+
+DEFINE
+ #INCLUDE "RD.GETDATA.DEF"
+ INPUTCOUNT= NUMBER
+ INPUTFORM= CHARACTER ARRAY(60) 
+ I=NUMBER
+ TMPCHR=CHARACTER
+ TMPN=NUMBER
+ FOUNDNAME=CHARACTER(1)
+ NAMEARRAY=CHARACTER(40)       ARRAY(99,2)
+ SNARRAY=CHARACTER(40)         ARRAY(20,99,3)
+ N=NUMBER
+ RNAME=NUMBER                  ARRAY(20)
+ OPTINOUT=CHARACTER            ARRAY(20)
+ RESPONSE=CHARACTER            ARRAY(20)
+ DISCLOSURE=CHARACTER          ARRAY(20)
+ FOUNDWARNING41=CHARACTER(1)   ARRAY(20)
+ DONE=CHARACTER(1)
+ CANCEL=CHARACTER
+ [MAINSSN=CHARACTER(9)]
+ X=NUMBER
+ SV=NUMBER
+ SC=CHARACTER
+ SN=NUMBER                     ARRAY(20)
+ FIRST=CHARACTER(1)
+ INITERROR=CHARACTER
+ EXECERROR=CHARACTER
+ TEMPNAME=CHARACTER            ARRAY(20)
+ TEMPOPTINOUT=CHARACTER        ARRAY(20)
+ TEMPRESPONSE=CHARACTER        ARRAY(20)
+ TEMPEADDR=CHARACTER           ARRAY(20)
+ TEMPACKMETHOD=CHARACTER       ARRAY(20)
+ ALLIDS=CHARACTER              ARRAY(20)
+ EADDR=CHARACTER               ARRAY(20)
+ ACKMETHOD=CHARACTER           ARRAY(20)
+ CURRSTAT=CHARACTER            ARRAY(20)
+ CURROPTINOPTOUT=CHARACTER     ARRAY(20)
+ TLOC=NUMBER                   ARRAY(20)
+ CURREADDR=CHARACTER
+ TB=NUMBER
+ TM=NUMBER
+ FNDNAME=CHARACTER(1)
+ SID=CHARACTER
+ TEMPRESP=CHARACTER
+ [TEMPACK=CHARACTER]
+ FMERROR=CHARACTER
+ MAINEADDR=CHARACTER
+ TEMPIDS=CHARACTER
+ TRLOC=NUMBER
+ DISPERROR=CHARACTER
+ ASKQUESTION=CHARACTER(1)
+ BADACCT=CHARACTER(1)
+ FOUNDCARD=CHARACTER(1)
+ REPRINT=CHARACTER(1)
+ FOUND1OPTIN=CHARACTER(1)
+ DOERROR=CHARACTER(1)
+ OUTLINE=CHARACTER
+ WNUMBER=NUMBER
+ WERROR=CHARACTER
+ [WLINE=CHARACTER]
+ WPROGRAM=CHARACTER
+ OUTMETHOD=CHARACTER
+ SHOPTION=NUMBER
+ JTNAMETYPE=NUMBER
+END
+
+SETUP
+ WPROGRAM=@ENVPARAMCHAR3
+ JTNAMETYPE=@ENVPARAMNUMBER2
+ BADACCT="N"
+ FOUNDCARD="N"
+ REPRINT="N"
+ FOUND1OPTIN="N"
+ CURREADDR=NAME:EMAIL                                
+ FOR EACH CARD WITH (CARD:TYPE=20 OR CARD:TYPE=30 [OR CARD:TYPE=31]) AND [FIXME: add CARD:TYPE=31]
+                    (CARD:STATUS=0 OR (CARD:STATUS=1 AND CARD:EXPIRATIONDATE>SYSTEMDATE))
+  DO
+   FOUNDCARD="Y"
+  END
+ CALL GETNAMES
+ DONE="Y"
+ CANCEL=""
+ DISPERROR=""
+ ASKQUESTION="Y"
+ IF (ACCOUNT:TYPE=2 AND GETDATANUMBER(GETUSERPRIVILEGE,SYSUSERNUMBER,461)=0) OR SV=0 OR 
+    (ACCOUNT:TYPE>9 AND ACCOUNT:TYPE<>21 AND ACCOUNT:TYPE<>22 AND ACCOUNT:TYPE<>23) OR
+    (WPROGRAM<>"ACCTSCRIPT" AND WPROGRAM<>"ONLINE" AND FOUNDCARD="N")  THEN
+  DO
+   IF ACCOUNT:TYPE=2 THEN DISPERROR="Cannot FM employee Account"
+   ELSE IF FOUNDCARD="N" THEN DISPERROR="Cannot Opt-In/Opt-Out - NO Debit Card or ATM Card."
+   ELSE IF SV=0 THEN DISPERROR="Cannot Opt-In/Opt-Out - NO Checking Account."
+   ELSE IF ACCOUNT:TYPE>9 THEN DISPERROR="Opt-Out not available for Business Accounts."
+   BADACCT="Y"
+  END
+ ELSE DONE="N"
+ IF DISPERROR<>"" THEN CALL DISPLAYERROR
+ WHILE DONE="N"
+  DO
+   DONE="Y"
+   CALL DOHTML
+  END
+ IF CANCEL="" AND ASKQUESTION="Y" AND BADACCT="N" THEN
+  DO
+   FOR X=1 TO SV
+    DO
+     IF RNAME(X)<>99 THEN
+      DO
+       FNDNAME="N"
+       FOR TB=1 TO TM
+        DO
+         IF TEMPNAME(TB)=SNARRAY(X,RNAME(X),2) AND TEMPOPTINOUT(TB)=OPTINOUT(X) AND 
+            TEMPRESPONSE(TB)=RESPONSE(X) AND TEMPACKMETHOD(TB)=ACKMETHOD(X) AND
+            TEMPEADDR(TB)=EADDR(X) THEN
+          DO
+           IF ALLIDS(TB)<>"" THEN ALLIDS(TB)=ALLIDS(TB)+", "
+           ALLIDS(TB)=ALLIDS(TB)+SNARRAY(X,1,1)
+           FNDNAME="Y"
+          END
+        END
+       IF FNDNAME="N" THEN 
+        DO
+         TM=TM+1
+         ALLIDS(TM)=ALLIDS(TM)+SNARRAY(X,1,1)
+         TEMPNAME(TM)=SNARRAY(X,RNAME(X),2)
+         TEMPOPTINOUT(TM)=OPTINOUT(X)
+         TEMPRESPONSE(TM)=RESPONSE(X)
+         TEMPACKMETHOD(TM)=ACKMETHOD(X)
+         TEMPEADDR(TM)=EADDR(X)
+        END
+      END
+    END
+   FOR TB=1 TO TM
+    DO
+     IF TEMPACKMETHOD(TB)="NOACK" OR TEMPACKMETHOD(TB)="VIEWED" THEN CALL DOTRACKING
+     ELSE
+      DO
+       IF TEMPACKMETHOD(TM)<>"EADDR" THEN TEMPEADDR(TB)=""
+       INITSUBROUTINE(INITERROR)
+       IF INITERROR<>"" THEN
+        DO
+         OUTLINE="Init Error OPTINFORM: "+INITERROR
+         CALL WRITEERROR
+        END
+       @ENVARGCHAR1=TEMPNAME(TB)
+       IF REPRINT="Y" THEN @ENVARGCHAR2="REPRINT"
+       ELSE IF WPROGRAM="" THEN @ENVARGCHAR2="TELLER"
+       ELSE @ENVARGCHAR2=WPROGRAM
+       @ENVARGCHAR3=ALLIDS(TB)
+       @ENVARGCHAR4=TEMPOPTINOUT(TB)
+       @ENVARGCHAR5=TEMPRESPONSE(TB)
+       IF TEMPEADDR(TB)<>"" THEN @ENVARGCHAR6=TEMPEADDR(TB)
+       ELSE @ENVARGCHAR6=""
+       @ENVARGCHAR7=TEMPACKMETHOD(TB)
+       @ENVARGCHAR8="ACCTSCRIPT"
+       EXECUTE("OPTINFORM",EXECERROR)
+       IF EXECERROR<>"" THEN
+        DO
+         OUTLINE="Execute Error OPTINFORM: "+EXECERROR
+         CALL WRITEERROR
+        END
+      END
+    END
+  END
+END
+
+PRINT TITLE="OPTIN SELECTION"
+ SUPPRESSNEWLINE
+END
+
+TOTAL
+END
+
+PROCEDURE DOHTML
+ ASKQUESTION="Y"
+ HTMLVIEWOPEN(0)
+ HTMLVIEWLINE("<html>")
+ HTMLVIEWLINE("<head>")
+ HTMLVIEWLINE("<title>Opt-In/Opt-Out Selection</title>")
+ HTMLVIEWLINE("<meta http-equiv=Content-Type content=text/html; charset=iso-8859-1>")
+ HTMLVIEWLINE("</head>")
+ HTMLVIEWLINE("<body bgcolor=#FFFFFF text=#000000>")
+ HTMLVIEWLINE(" <p align=center><font size=+2><b>Opt-In/Opt-Out for Checking Accounts</b></font></p>")
+ HTMLVIEWLINE("<form name=OPTIN METHOD=POST ACTION=symitar://HTMLView~Action=Post>")
+ HTMLVIEWLINE(" <p align=center><font size=+1><input type=checkbox name=00ASKQUESTION value=NOTNOW>")
+ HTMLVIEWLINE("    Check here if member does not want to respond right now.<br><br>")
+ HTMLVIEWLINE(" <p align=center><font size=+1><input type=checkbox name=00REPRINT value=REPRINT>")
+ HTMLVIEWLINE("    Check here if you just need to reprint the Opt-In Letter.<br><br>")
+ [HTMLVIEWLINE("<table WIDTH=800 align=center>") ]
+ HTMLVIEWLINE("<table width=600 bgcolor=#CCCC99 border=10 bordercolor=#000066 cellspacing=4 cellpadding=5 align=center>")
+ HTMLVIEWLINE("<tr>")
+ HTMLVIEWLINE("  <td colspan=2 valign=top>Due to a new federal regulation, you must opt-in for ") 
+ HTMLVIEWLINE("     overdraft services if you want us to allow your account to temporarily go ")
+ HTMLVIEWLINE("     negative to pay for one-time debit card transactions or ATM cash withdrawals.<br><br>")
+ HTMLVIEWLINE("     There is a $27.50 fee per transaction for this service.  If you do not opt-in, ")
+ HTMLVIEWLINE("     then we will decline any transaction that you do not have enough money in your ")
+ HTMLVIEWLINE("     checking account to cover the entire amount of the transaction.  Would you like ")
+ HTMLVIEWLINE("     to opt-in now?  If you never have an overdraft you will never be charged a fee.<br><br>")
+ HTMLVIEWLINE("  </td>")    
+ HTMLVIEWLINE("</tr>")
+  HTMLVIEWLINE("</table>")
+ FOR X=1 TO SV
+  DO   
+   SC=FORMAT("99",X)
+   HTMLVIEWLINE("<table width=600 bgcolor=silver border=10 cellspacing=4 cellpadding=5 align=center>")
+   IF FOUNDWARNING41(X)="Y" AND UPPERCASE(CURRSTAT(X))="CURRENTLY OPT-OUT" THEN 
+    DO
+     HTMLVIEWLINE("<tr>")
+     HTMLVIEWLINE("   <td colspan=2><font color=navy><b>Opt-IN for Checking "+SNARRAY(X,1,1)+"</b></font>")
+     HTMLVIEWLINE("       &nbsp;&nbsp;&nbsp;Status: <font color=BLACK><b>Not Available</b></font><br>")
+     HTMLVIEWLINE("   <font color=RED><b>Opt-In now allowed due to No Overdraft Tolerance Warning.</b></font></td>")
+     HTMLVIEWLINE(" </tr>")
+     HTMLVIEWLINE("</table>")
+     HTMLVIEWLINE("<br>")
+    END
+   ELSE
+    DO
+     HTMLVIEWLINE("  <tr>")
+     HTMLVIEWLINE("      <td colspan=3><font color=navy><b>Opt-IN/Opt-Out for Checking "+SNARRAY(X,1,1)+"</b></font>")
+     IF CURRSTAT(X)="" THEN HTMLVIEWLINE("&nbsp;&nbsp;&nbsp;Status: <font color=NAVY> Not Answered Yet</font><br>")
+     ELSE
+      DO
+       IF UPPERCASE(CURRSTAT(X))="CURRENTLY OPT-IN" THEN HTMLVIEWLINE("&nbsp;&nbsp;&nbsp;Status: <font color=GREEN>")
+       ELSE HTMLVIEWLINE("&nbsp;&nbsp;&nbsp;Status: <font color=RED>")
+       HTMLVIEWLINE(CURRSTAT(X)+"</font><br>")
+      END
+     HTMLVIEWLINE("         <font size=-1>(Only members Joint for this checking can respond)</font></td>")
+     HTMLVIEWLINE("  </tr>")
+
+     HTMLVIEWLINE("  <tr>")
+     [HTMLVIEWLINE("<td rowspan=5 width=15%>Here is more information on the Opt in Program</td>")  ]                                                                           [opt in/out to be added later]
+     HTMLVIEWLINE("    <td width=35%>Opt-In/Opt-Out</td>")
+     HTMLVIEWLINE("    <td width=65%>") 
+     HTMLVIEWLINE("      <select name="+SC+"OPTIN>")
+     IF OPTINOUT(X)="OPTIN" OR (OPTINOUT(X)="" AND UPPERCASE(CURRSTAT(X))="CURRENTLY OPT-IN") OR (OPTINOUT(X)="" AND CURRSTAT(X)="") THEN 
+       HTMLVIEWLINE("<option value=OPTIN selected>Opt-In</option>")
+     ELSE HTMLVIEWLINE("       <option value=OPTIN >Opt-In</option>")
+     IF OPTINOUT(X)="OPTOUT" OR (OPTINOUT(X)="" AND UPPERCASE(CURRSTAT(X))="CURRENTLY OPT-OUT") THEN 
+       HTMLVIEWLINE("<option value=OPTOUT selected>Opt-Out</option>")
+     ELSE HTMLVIEWLINE("       <option value=OPTOUT>Opt-Out</option>")
+     HTMLVIEWLINE("      </select>")
+     HTMLVIEWLINE("    </td>")
+     HTMLVIEWLINE("  </tr>")
+
+     HTMLVIEWLINE("<tr>")
+     HTMLVIEWLINE("    <td width=35%>Member Responding</td>")
+     HTMLVIEWLINE("    <td width=65%>")
+     HTMLVIEWLINE("      <select name="+SC+"NAME>")
+     IF RNAME(X)=0 AND SN(X)<>1 THEN HTMLVIEWLINE("<option value=00 selected>Choose Member</option>")
+     ELSE HTMLVIEWLINE("<option value=00>Choose Member</option>")
+     FOR I=1 TO SN(X)
+      DO
+       IF RNAME(X)=I OR (I=1 AND SN(X)=1) THEN HTMLVIEWLINE("<option value="+FORMAT("99",I)+" selected>"+SNARRAY(X,I,2)+"</option>")
+       ELSE HTMLVIEWLINE("<option value="+FORMAT("99",I)+">"+SNARRAY(X,I,2)+"</option>")
+      END 
+     IF SV>1 THEN 
+      DO
+       IF RNAME(X)=99 THEN HTMLVIEWLINE("<option value=99 selected>No Change/Member not present</option>")
+       ELSE HTMLVIEWLINE("<option value=99>No Change/Member not present</option>")
+      END
+     HTMLVIEWLINE("      </select>")
+     HTMLVIEWLINE("    </td>")
+     HTMLVIEWLINE("  </tr>")
+     HTMLVIEWLINE("  <tr>") 
+     HTMLVIEWLINE("    <td width=35%>Method of Response</td>")
+     HTMLVIEWLINE("    <td width=65%>") 
+     HTMLVIEWLINE("      <select name="+SC+"RESPONSE>")
+     IF RESPONSE(X)="NONE" THEN HTMLVIEWLINE("<option value=NONE selected>Select Method</option>")
+     ELSE HTMLVIEWLINE("       <option value=NONE>Select Method</option>")
+     IF RESPONSE(X)="INPERSON" THEN HTMLVIEWLINE("       <option value=INPERSON selected>Responded in Person</option>")
+     ELSE HTMLVIEWLINE("       <option value=INPERSON>Responded in Person</option>")
+     IF RESPONSE(X)="ONLINE" THEN HTMLVIEWLINE("       <option value=ONLINE selected>Approved Online</option>")
+     ELSE HTMLVIEWLINE("       <option value=ONLINE>Approved Online</option>")
+     IF RESPONSE(X)="BYPHONE" THEN HTMLVIEWLINE("       <option value=BYPHONE selected>By Phone Call</option>")
+     ELSE HTMLVIEWLINE("       <option value=BYPHONE>By Phone Call</option>")
+     IF RESPONSE(X)="MAILEDFORM" THEN HTMLVIEWLINE("        <option value=MAILEDFORM selected>Received Mailed Form</option>")
+     ELSE HTMLVIEWLINE("        <option value=MAILEDFORM>Received Mailed Form</option>")
+     HTMLVIEWLINE("      </select>")
+     HTMLVIEWLINE("    </td>")
+     HTMLVIEWLINE(" </tr>")
+
+     HTMLVIEWLINE("  <tr>") 
+     HTMLVIEWLINE("    <td width=35%>Acknowledge Method</td>")
+     HTMLVIEWLINE("    <td width=65%>") 
+     HTMLVIEWLINE("      <select name="+SC+"ACKMETHOD>")
+     IF ACKMETHOD(X)="NONE" THEN HTMLVIEWLINE("<option value=NONE selected>Select Acknowledgement Method</option>")
+     ELSE HTMLVIEWLINE("       <option value=NONE>Select Method</option>")
+     IF ACKMETHOD(X)="HANDOUT" THEN HTMLVIEWLINE("<option value=HANDOUT selected>Handed to Member</option>")
+     ELSE HTMLVIEWLINE("        <option value=HANDOUT>Handed to Member</option>")
+     IF ACKMETHOD(X)="EADDR" THEN HTMLVIEWLINE("<option value=EADDR selected>eMail to Member</option>")
+     ELSE HTMLVIEWLINE("       <option value=EADDR>eMail to Member</option>")
+     IF ACKMETHOD(X)="MAILNOTICE" THEN HTMLVIEWLINE("<option value=MAILNOTICE selected>Mail Paper Notice</option>")
+     ELSE HTMLVIEWLINE("       <option value=MAILNOTICE>Mail Paper Notice</option>")
+     IF ACKMETHOD(X)="VIEWED" THEN HTMLVIEWLINE("<option value=VIEWED selected>Viewed Form Online</option>")
+     ELSE HTMLVIEWLINE("       <option value=VIEWED>Viewed Form Online</option>")
+     IF ACKMETHOD(X)="NOACK" THEN HTMLVIEWLINE("<option value=NOACK selected>Opt-Out - No Acknowledgment needed</option>")
+     ELSE HTMLVIEWLINE("       <option value=NOACK>Opt-Out - No Acknowledgment needed</option>")
+     HTMLVIEWLINE("      </select>")
+     HTMLVIEWLINE("    </td>")
+     HTMLVIEWLINE(" </tr>")
+
+     HTMLVIEWLINE("  <tr>")                                                                             [opt in/out to be added later] 
+     HTMLVIEWLINE("    <td width=35%>Verify eMail if needed</td>")
+     HTMLVIEWLINE("    <td width=65%>") 
+     HTMLVIEWLINE("      <input type=text name="+SC+"EADDR size=40 value="+EADDR(X)+">")
+     HTMLVIEWLINE("    </td>")
+     HTMLVIEWLINE(" </tr>")
+
+     HTMLVIEWLINE("</table>")
+     HTMLVIEWLINE("<br>")
+    END
+  END
+ HTMLVIEWLINE("    </td>")
+ HTMLVIEWLINE(" </tr>")
+ HTMLVIEWLINE("</table>")
+ HTMLVIEWLINE("     <p align=center>If the member is Opting-In and you selected <b>Responded in Person</b>, then the Acknowledgement<br>")
+ HTMLVIEWLINE("                     form will print to your laser printer; otherwise, the Acknowledgement form will either be<br>")
+ HTMLVIEWLINE("                     eMailed to the address entered or Snail Mailed to the address on the account.")
+ HTMLVIEWLINE("     <p align=center><INPUT TYPE=SUBMIT NAME=00SUBMIT VALUE=Submit>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;")
+ HTMLVIEWLINE("                     <INPUT TYPE=SUBMIT NAME=00CANCEL VALUE=Cancel></p>")
+ HTMLVIEWLINE("</form>")
+ HTMLVIEWLINE("</body>")
+ HTMLVIEWLINE("</html>")
+ HTMLVIEWDISPLAY
+ CALL LOADRESULTS
+ CALL SETVARIABLES
+ IF CANCEL="" AND ASKQUESTION="Y" AND BADACCT="N" THEN
+  DO
+   FIRST="Y"
+   FOR X=1 TO SV
+    DO
+     DOERROR="N"
+     [IF FOUNDWARNING41(X)<>"Y" AND ]
+     IF REPRINT="Y" THEN
+      DO
+       IF (OPTINOUT(X)<>"OPTIN" OR FOUND1OPTIN="N" OR ACKMETHOD(X)<>"HANDOUT") THEN DOERROR="Y"
+      END
+     ELSE
+      DO
+       IF RNAME(X)<>99 THEN
+        DO
+         IF RNAME(X)=0 THEN DOERROR="Y"                                                                 [NAME NOT SELECTED]
+         IF CURROPTINOPTOUT(X)=OPTINOUT(X) THEN DOERROR="Y"                                             [OPTION SELECTED IS CURRENT OPTION] 
+         IF RESPONSE(X)="NONE" OR ACKMETHOD(X)="NONE" THEN DOERROR="Y"                                  [NO RESPONCE OR ACKNOWLEDGEMENT SELECTED]
+         IF OPTINOUT(X)="ONLINE" AND ACKMETHOD(X)<>"VIEWED" THEN DOERROR="Y"                            [RESPONCE REQUIRES NO ACKNOWLEDGEMENT]
+         IF OPTINOUT(X)="OPTOUT" AND ACKMETHOD(X)<>"NOACK" THEN DOERROR="Y"                             [RESPONCE REQUIRES NO ACKNOWLEDGEMENT]
+         ELSE IF OPTINOUT(X)="OPTIN" THEN                                                               [*** FOR OPTIN ONLY ***]
+          DO 
+           IF (RESPONSE(X)="INPERSON"  AND ACKMETHOD(X)<>"HANDOUT") OR                                  [IN PERSON REQUIRES A HANDOUT]
+              (RESPONSE(X)<>"INPERSON" AND ACKMETHOD(X)="HANDOUT") THEN DOERROR="Y"                     [ALL OTHERS REQUIRE MAIL OR EMAIL]
+           IF ACKMETHOD(X)="EADDR" THEN                                                                 [*** EMAIL WANTED FOR ACKNOWLEDGEMENT ***]
+            DO
+             IF CHARACTERSEARCH(EADDR(X),"@")=0 OR CHARACTERSEARCH(EADDR(X),".")=0 THEN DOERROR="Y"     [MISSING REQUIRED INFORMATION]
+             IF EADDR(X)="" THEN DOERROR="Y"                                                            [NO EMAIL ADDRESS IN FIELD] 
+             IF(RESPONSE(X)="BYPHONE" AND EADDR(X)<>CURREADDR) THEN DOERROR="Y"                         [EMAIL ADDRESS CHANGED BY PHONE NOT ALLOWES]
+            END
+          END
+        END
+      END
+     IF DOERROR="Y" THEN 
+      DO
+       IF FIRST="Y" THEN
+        DO
+         HTMLVIEWOPEN(0)
+         HTMLVIEWLINE("<html>")
+         HTMLVIEWLINE("<head>")
+         HTMLVIEWLINE("<title>Opt-In/Opt-Out Errors</title>")
+         HTMLVIEWLINE("<meta http-equiv=Content-Type content=text/html; charset=iso-8859-1>")
+         HTMLVIEWLINE("</head>")
+         HTMLVIEWLINE("<body bgcolor=#FFFFFF text=#000000>")
+         HTMLVIEWLINE(" <p align=center><font size=+2 color=RED><b>Opt-In/Opt-Out Errors</b></font></p>")
+         HTMLVIEWLINE("<form name=ERRORS METHOD=POST ACTION=symitar://HTMLView~Action=Post>")
+         HTMLVIEWLINE("<table width=40% bgcolor=#FFFFCC border=10 cellspacing=4 cellpadding=5 align=center>")
+         FIRST="N"
+        END
+       HTMLVIEWLINE("<tr>")
+       HTMLVIEWLINE("   <td>")
+       HTMLVIEWLINE("<font color=navy><b>For checking "+SNARRAY(X,1,1)+"</b></font><br>")
+       IF REPRINT="Y" THEN
+        DO
+         IF OPTINOUT(X)<>"OPTIN" THEN HTMLVIEWLINE("<font color=RED>Reprint Only good for Opt-In.</font><br>")
+         IF FOUND1OPTIN="N" THEN HTMLVIEWLINE("<font color=MAROON>Not currently Opted In.  Do NOT check Reprint.</font><br>")
+         IF ACKMETHOD(X)<>"HANDOUT" THEN HTMLVIEWLINE("<font color=PURPLE>Reprint Only for Acknowledgment Method, Handed to Member.</font><br>")
+         REPRINT="N"
+        END
+       ELSE
+        DO
+         IF RNAME(X)=0 THEN HTMLVIEWLINE("<font color=MAROON>You must select Member Responding.</font><br>")
+         IF RESPONSE(X)="ONLINE" AND ACKMETHOD(X)<>"VIEWED" THEN 
+          DO
+           HTMLVIEWLINE("<font color=#CC6600>Approved Online")
+           HTMLVIEWLINE("<font color=TEAL>You must select Viewed Form Online.</font><br>") 
+          END
+         IF RESPONSE(X)="INPERSON" AND ACKMETHOD(X)<>"HANDOUT" AND OPTINOUT(X)="OPTIN" THEN 
+          DO
+           HTMLVIEWLINE("<font color=#CC6600>For Responded in Person you MUST select the")
+           HTMLVIEWLINE("Acknowledgment Method, Handed to Member</font><br>") 
+          END
+         ELSE IF RESPONSE(X)<>"INPERSON" AND ACKMETHOD(X)="HANDOUT" AND OPTINOUT(X)="OPTIN" THEN 
+          DO
+           HTMLVIEWLINE("<font color=#CC6600>You MUST select Responded in Person for the")
+           HTMLVIEWLINE("Acknowledgment Method, Handed to Member</font><br>") 
+          END
+         IF CURROPTINOPTOUT(X)=OPTINOUT(X) AND RNAME(X)<>99 THEN 
+          DO
+           HTMLVIEWLINE("<font color=FUCHSIA>You did not change the Opt-In/Opt-Out Option. <br>") 
+           HTMLVIEWLINE("If you do not want to change the option then select<br>") 
+           HTMLVIEWLINE("<B>No Change/Member not present</B> for Member Responding Option.</font></br>")
+          END
+         IF RESPONSE(X)="NONE" THEN HTMLVIEWLINE("<font color=TEAL>You must select Method of Response.</font><br>") 
+         IF OPTINOUT(X)="OPTOUT" AND (ACKMETHOD(X)<>"NOACK" OR ACKMETHOD(X)<>"VIEWED") THEN 
+           HTMLVIEWLINE("<font color=TEAL>You must select Opt-Out - No Acknowledgment needed if Opting Out.</font><br>") 
+         ELSE IF ACKMETHOD(X)="NONE" THEN HTMLVIEWLINE("<font color=PURPLE>You must select Acknowledgment Method.</font><br>")
+         ELSE IF ACKMETHOD(X)="EADDR" AND OPTINOUT(X)="OPTIN" THEN
+          DO
+           IF RESPONSE(X)="BYPHONE" THEN 
+            DO 
+             HTMLVIEWLINE("<font color=BLACK>By Phone, ")
+             IF CURREADDR<>EADDR(X) THEN
+              DO
+               HTMLVIEWLINE("you cannot change the eMail Address for the Acknowledgment.</font><br>") 
+               EADDR(X)=CURREADDR
+              END
+             ELSE IF LENGTH(CURREADDR)<5 THEN 
+               HTMLVIEWLINE("<font color=BLACK>you cannot select eMail for Ackowledgment because Primary eMail address is invaild.</font><br>")
+            END
+           ELSE IF EADDR(X)="" THEN
+            HTMLVIEWLINE("<font color=OLIVE>You must have an eMail address for Acknowledgment Method selected.</font><br>") 
+           ELSE IF CHARACTERSEARCH(EADDR(X),"@")=0 OR CHARACTERSEARCH(EADDR(X),".")=0 THEN
+            HTMLVIEWLINE("<font color=OLIVE>You must have a VALID eMail address for Acknowledgment Method selected.</font><br>") 
+          END
+        END
+       HTMLVIEWLINE("<br>")
+       HTMLVIEWLINE("   </td>")
+       HTMLVIEWLINE("</tr>")
+       DONE="N"
+      END
+    END
+   IF FIRST="N" THEN
+    DO
+     HTMLVIEWLINE("   </td>")
+     HTMLVIEWLINE("</tr>")
+     HTMLVIEWLINE("<tr>")
+     HTMLVIEWLINE("   <td><br>")
+     HTMLVIEWLINE("     <p align=center><INPUT TYPE=SUBMIT NAME=00SUBMIT VALUE=Continue></p>")
+     HTMLVIEWLINE("   </td>")
+     HTMLVIEWLINE("</tr>")
+     HTMLVIEWLINE("</form>")
+     HTMLVIEWLINE("</table>")
+     HTMLVIEWLINE("</body>")
+     HTMLVIEWLINE("</html>")
+     HTMLVIEWDISPLAY
+     CALL LOADRESULTS
+    END
+  END
+END
+
+
+PROCEDURE LOADRESULTS
+ INPUTCOUNT=0
+ WHILE (INPUTFORM(INPUTCOUNT)<>"EOD")
+  DO
+   INPUTCOUNT=INPUTCOUNT+1
+   INPUTFORM(INPUTCOUNT)=ENTERLINE(0)
+  END
+END
+
+
+PROCEDURE SETVARIABLES
+ FOR X=1 TO SV
+  DO
+   OPTINOUT(X)=""
+   RNAME(X)=0
+   RESPONSE(X)=""
+   DISCLOSURE(X)=""
+  END
+ CANCEL=""
+ FOR I=1 TO INPUTCOUNT
+  DO
+   TMPN=VALUE(SEGMENT(INPUTFORM(I),1,2))
+   TMPCHR=SEGMENT(INPUTFORM(I),3,LENGTH(INPUTFORM(I)))
+   IF SEGMENT(TMPCHR,1,12)="ASKQUESTION="      THEN ASKQUESTION="N"
+   IF SEGMENT(TMPCHR,1,8)="REPRINT="           THEN REPRINT="Y"
+   ELSE IF SEGMENT(TMPCHR,1,6)="OPTIN="        THEN OPTINOUT(TMPN)=SEGMENT(TMPCHR,7,LENGTH(TMPCHR))
+   ELSE IF SEGMENT(TMPCHR,1,5)="NAME="         THEN RNAME(TMPN)=VALUE(SEGMENT(TMPCHR,6,LENGTH(TMPCHR)))
+   ELSE IF SEGMENT(TMPCHR,1,9)="RESPONSE="     THEN RESPONSE(TMPN)=SEGMENT(TMPCHR,10,LENGTH(TMPCHR))
+   ELSE IF SEGMENT(TMPCHR,1,11)="DISCLOSURE="  THEN DISCLOSURE(TMPN)=SEGMENT(TMPCHR,12,LENGTH(TMPCHR))
+   ELSE IF SEGMENT(TMPCHR,1,10)="ACKMETHOD="   THEN ACKMETHOD(TMPN)=SEGMENT(TMPCHR,11,LENGTH(TMPCHR))
+   ELSE IF SEGMENT(TMPCHR,1,6)="EADDR="        THEN EADDR(TMPN)=SEGMENT(TMPCHR,7,LENGTH(TMPCHR))
+   ELSE IF SEGMENT(TMPCHR,1,7)="CANCEL="       THEN CANCEL="YES"
+  END
+END
+
+PROCEDURE GETNAMES
+ N=0
+ MAINEADDR=NAME:EMAIL
+ FOR EACH NAME WITH NAME:NAMEFORMAT=0 AND (NAME:TYPE=0 OR NAME:TYPE=6 OR NAME:TYPE=14) AND NAME:EXPIRATIONDATE='--/--/--'
+  DO
+   N=N+1
+   NAMEARRAY(N,1)=NAME:LONGNAME
+   NAMEARRAY(N,2)=NAME:SSN
+  END
+ FOR EACH SHARE WITH SHARE:CLOSEDATE='--/--/--' AND (SHARE:TYPE>=80 AND SHARE:TYPE<=89)
+  DO
+   SV=SV+1
+   EADDR(SV)=MAINEADDR
+   IF ANYWARNING(SHARE,41) THEN FOUNDWARNING41(SV)="Y"
+   FOR I=1 TO N
+    DO
+     SNARRAY(SV,I,1)=SHARE:ID
+     SNARRAY(SV,I,2)=NAMEARRAY(I,1)
+     SNARRAY(SV,I,3)=NAMEARRAY(I,2)
+    END
+   SN(SV)=N
+   FOR EACH SHARE NAME WITH SHARE NAME:EXPIRATIONDATE='--/--/--' AND 
+       (SHARE NAME:TYPE=1 OR SHARE NAME:TYPE=6 OR SHARE NAME:TYPE=9 OR SHARE NAME:TYPE=14)
+    DO
+     FOUNDNAME="N"
+     FOR I=1 TO SN(SV)
+      DO
+       IF SHARE NAME:LONGNAME=SNARRAY(SV,I,2) AND SHARE NAME:SSN=SNARRAY(SV,I,3) THEN FOUNDNAME="Y"
+      END
+     IF FOUNDNAME="N" THEN
+      DO
+       SN(SV)=SN(SV)+1
+       SNARRAY(SV,SN(SV),1)=SHARE:ID
+       SNARRAY(SV,SN(SV),2)=SHARE NAME:LONGNAME
+       SNARRAY(SV,SN(SV),3)=SHARE NAME:SSN
+      END
+    END
+   TLOC(SV)=0
+   FOR EACH SHARE TRACKING WITH SHARE TRACKING:TYPE=80
+    DO
+     TLOC(SV)=SHARE TRACKING:LOCATOR
+     CURRSTAT(SV)=UPPERCASE(SHARE TRACKING:USERCHAR4)
+     IF UPPERCASE(SHARE TRACKING:USERCHAR4)="CURRENTLY OPT-IN" THEN 
+      DO
+       CURROPTINOPTOUT(SV)="OPTIN"
+       FOUND1OPTIN="Y"
+      END
+     ELSE CURROPTINOPTOUT(SV)="OPTOUT"
+    END
+  END
+END
+
+PROCEDURE DOTRACKING
+ TEMPIDS=ALLIDS(TB)
+ WHILE LENGTH(TEMPIDS)>0
+  DO
+   IF SEGMENT(TEMPIDS,1,1)=" " THEN TEMPIDS=SEGMENT(TEMPIDS,2,LENGTH(TEMPIDS))
+   SID=SEGMENT(TEMPIDS,1,2)
+   IF LENGTH(TEMPIDS)>3 THEN TEMPIDS=SEGMENT(TEMPIDS,4,LENGTH(TEMPIDS))
+   ELSE TEMPIDS=""
+   TRLOC=0
+   FOR EACH SHARE WITH SHARE:ID=SID
+    DO
+     FOR EACH SHARE TRACKING WITH SHARE TRACKING:TYPE=80
+      DO
+       TRLOC=SHARE TRACKING:LOCATOR
+      END
+    END
+   OUTMETHOD="NONE"
+   IF TEMPRESPONSE(TB)="ONLINE" THEN 
+    DO
+     TEMPRESP="Approved Online"
+     OUTMETHOD="Viewed Form Online"
+    END
+   ELSE IF TEMPRESPONSE(TB)="INPERSON" THEN TEMPRESP="Responded in Person"
+   ELSE IF TEMPRESPONSE(TB)="BYPHONE" THEN TEMPRESP="By Phone Call"
+   ELSE IF TEMPRESPONSE(TB)="MAILEDFORM" THEN TEMPRESP="Received Mailed Form"
+   IF TEMPOPTINOUT(TB)="OPTIN" THEN SHOPTION=0
+   ELSE SHOPTION=7
+   FMPERFORM REVISE SHARE SID (0,0,FMERROR)
+    DO
+     SET AUTHFEEOPTION:1 TO SHOPTION
+    END
+   IF FMERROR<>"" THEN
+    DO
+     OUTLINE="Error Updating Share ODT Service: "+FMERROR
+     CALL WRITEERROR
+    END
+   IF TRLOC=0 THEN
+    DO
+     IF TEMPOPTINOUT(TB)="OPTIN" THEN
+      DO
+       FMPERFORM CREATE SHARE SID TRACKING LOC BEFOREFIRST (0,80,FMERROR)
+        DO
+         SET USERNUMBER1 TO SYSACTUALTIME
+         SET USERCHAR1 TO TEMPNAME(TB)
+         SET USERCHAR2 TO TEMPRESP
+         SET USERCHAR3 TO OUTMETHOD
+         SET USERCHAR4 TO "Currently Opt-In"
+         SET USERCHAR5 TO TEMPEADDR(TB)
+         SET USERDATE1 TO SYSTEMDATE
+        END
+        IF FMERROR<>"" THEN
+         DO
+          OUTLINE="OptIn Tracking create error: "+FMERROR
+          CALL WRITEERROR
+         END
+      END
+     ELSE
+      DO
+       FMPERFORM CREATE SHARE SID TRACKING LOC BEFOREFIRST (0,80,FMERROR)
+        DO
+         SET USERNUMBER2 TO SYSACTUALTIME
+         SET USERCHAR1 TO TEMPNAME(TB)
+         SET USERCHAR2 TO TEMPRESP
+         SET USERCHAR3 TO OUTMETHOD
+         SET USERCHAR4 TO "Currently Opt-Out"
+         SET USERCHAR5 TO TEMPEADDR(TB)
+         SET USERDATE2 TO SYSTEMDATE
+        END
+       IF FMERROR<>"" THEN
+        DO
+         OUTLINE="OptOut Tracking create error: "+FMERROR
+         CALL WRITEERROR
+        END
+      END
+    END
+   ELSE
+    DO       
+     IF TEMPOPTINOUT(TB)="OPTIN" THEN
+      DO                                                        
+       FMPERFORM REVISE SHARE SID TRACKING LOC TRLOC (0,0,FMERROR)
+        DO
+         SET USERNUMBER1 TO SYSACTUALTIME
+         SET USERCHAR1 TO TEMPNAME(TB)
+         SET USERCHAR2 TO TEMPRESP
+         SET USERCHAR3 TO OUTMETHOD
+         SET USERCHAR4 TO "Currently Opt-In"
+         SET USERCHAR5 TO TEMPEADDR(TB)
+         SET USERDATE1 TO SYSTEMDATE
+        END
+       IF FMERROR<>"" THEN
+        DO
+         OUTLINE="OptIn Tracking revision error: "+FMERROR
+         CALL WRITEERROR
+        END
+      END
+     ELSE 
+      DO                                                        
+       FMPERFORM REVISE SHARE SID TRACKING LOC TRLOC (0,0,FMERROR)
+        DO
+         SET USERNUMBER2 TO SYSACTUALTIME
+         SET USERCHAR1 TO TEMPNAME(TB)
+         SET USERCHAR2 TO TEMPRESP
+         SET USERCHAR3 TO OUTMETHOD
+         SET USERCHAR4 TO "Currently Opt-Out"
+         SET USERCHAR5 TO TEMPEADDR(TB)
+         SET USERDATE2 TO SYSTEMDATE
+        END
+       IF FMERROR<>"" THEN
+        DO
+         OUTLINE="OptOut Tracking revision error: "+FMERROR
+         CALL WRITEERROR
+        END
+      END
+    END
+  END
+END
+
+PROCEDURE DISPLAYERROR
+ HTMLVIEWOPEN(0)
+ HTMLVIEWLINE("<html>")
+ HTMLVIEWLINE("<head>")
+ HTMLVIEWLINE("<title>Loan Review</title>")
+ HTMLVIEWLINE("<meta http-equiv=Content-Type content=text/html; charset=iso-8859-1>")
+ HTMLVIEWLINE("</head>")
+ HTMLVIEWLINE("<body bgcolor=#FFFFFF text=#000000>") 
+ HTMLVIEWLINE("<br><br><br><br>")
+ HTMLVIEWLINE(" <table border=1 align=center bgcolor=#99CCFF>")
+ HTMLVIEWLINE("   <tr>") 
+ HTMLVIEWLINE("    <td align=center><font size=+2><b>"+DISPERROR+"</b></font></td>")
+ HTMLVIEWLINE("   </tr>") 
+ HTMLVIEWLINE(" </table>") 
+ HTMLVIEWLINE(" <P>")
+ HTMLVIEWLINE("  <FORM NAME=REDFLAGSCREEN METHOD=POST ACTION=symitar://HTMLView~Action=Post>")
+ HTMLVIEWLINE("  <div align=center>")
+ HTMLVIEWLINE("   <INPUT TYPE=SUBMIT NAME=submitbutton VALUE='Continue'>")
+ HTMLVIEWLINE("  </div>")
+ HTMLVIEWLINE("  </FORM>")
+ HTMLVIEWLINE(" </P>")
+ HTMLVIEWLINE("</body>")
+ HTMLVIEWLINE("<html>")
+ HTMLVIEWDISPLAY
+END
+
+PROCEDURE WRITEERROR
+ POPUPMESSAGE(2,OUTLINE)
+ IF WPROGRAM="ACCTSCRIPT" THEN
+  DO
+   OUTLINE=FORMAT("99/99/99",SYSTEMDATE)+"  "+FORMAT("99:99",SYSACTUALTIME)+"   "+ACCOUNT:NUMBER
+           +"  "+FORMAT("9999",SYSUSERNUMBER)+" - "+OUTLINE+" GH.OPTIN.HTML"
+   FILEOPEN("LETTER","ACCOUNTSCRIPT.ERRORS","APPEND",WNUMBER,WERROR)       [READS SSN TYPE HELP FILE FOR AVAILABLE SSN TYPES]
+    FILEWRITELINE(WNUMBER,OUTLINE,WERROR)
+   FILECLOSE(WNUMBER,WERROR) 
+  END
+END 

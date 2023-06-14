@@ -1,0 +1,192 @@
+[INSTANTISSUE.VISA - Create a new Visa card]
+
+SUBROUTINE DEMAND WINDOWS
+
+TARGET=ACCOUNT
+
+DEFINE
+ LOANNAMES=CHARACTER  ARRAY(100,2)
+ NAMELOCS=NUMBER      ARRAY(100)
+ CARDLOC=NUMBER       ARRAY(100)
+ LNID=CHARACTER    
+ L=NUMBER
+ I=NUMBER
+ FNDNAME=CHARACTER(1)
+ INCARD=NUMBER
+ NAMESEL=NUMBER
+ CNT=NUMBER
+ INPUTCOUNT= NUMBER
+ INPUTFORM=CHARACTER        ARRAY(60)  
+ II=NUMBER
+ TMPCHR=CHARACTER
+ CHOOSETYPE=CHARACTER
+ BUSNAME=CHARACTER
+ PNAME=CHARACTER
+END
+
+SETUP
+ INCARD=@ENVPARAMNUMBER5
+ NAMESEL=0
+ CALL GETCARDNAME
+END
+
+PRINT TITLE="INSTANT ISSUE VISA"
+  SUPPRESSNEWLINE       
+END
+
+PROCEDURE GETCARDNAME
+ BUSNAME=""
+ FOR EACH NAME WITH (NAME:EXPIRATIONDATE='--/--/--' OR NAME:EXPIRATIONDATE>SYSTEMDATE)
+  DO
+   IF NAME:TYPE=0 OR (NAME:TYPE=2 AND NAME:SSNOVERRIDE=1) THEN 
+    DO
+     IF NAME:NAMEFORMAT=1 THEN BUSNAME=NAME:LONGNAME 
+     ELSE 
+      DO
+       PNAME=NAME:LONGNAME 
+       FNDNAME="N"
+       FOR I=1 TO L
+        DO
+         IF NAME:LONGNAME=LOANNAMES(I,1) THEN FNDNAME="Y"
+        END
+       IF FNDNAME="N" THEN
+        DO
+         L=L+1
+         LOANNAMES(L,1)=NAME:LONGNAME
+         LOANNAMES(L,2)="N"
+         NAMELOCS(L)=NAME:LOCATOR
+        END
+      END
+    END
+  END
+ FOR EACH LOAN WITH LOAN:TYPE=INCARD AND LOAN:CLOSEDATE='--/--/--'
+  DO
+   LNID=LOAN:ID
+   FOR EACH LOAN NAME WITH (LOAN NAME:TYPE=1  OR LOAN NAME:TYPE=6  OR LOAN NAME:TYPE=9 OR LOAN NAME:TYPE=17 OR
+                            LOAN NAME:TYPE=18 OR LOAN NAME:TYPE=20 OR LOAN NAME:TYPE=21) AND 
+                            LOAN NAME:EXPIRATIONDATE='--/--/--' AND LOAN NAME:NAMEFORMAT=0
+    DO
+     FNDNAME="N"
+     FOR I=1 TO L
+      DO
+       IF LOAN NAME:LONGNAME=LOANNAMES(I,1) THEN FNDNAME="Y"
+      END
+     IF FNDNAME="N" THEN
+      DO
+       L=L+1
+       LOANNAMES(L,1)=LOAN NAME:LONGNAME
+       LOANNAMES(L,2)="L"
+       NAMELOCS(L)=LOAN NAME:LOCATOR
+      END
+    END
+  END
+ FOR EACH CARD WITH CARD:TYPE=INCARD AND CARD:STATUS<>2
+  DO
+   IF CARD:NAMETYPE=0 THEN 
+    DO
+     FOR I=1 TO L
+      DO
+       IF LOANNAMES(I,1)=PNAME THEN CARDLOC(I)=CARD:LOCATOR
+      END
+    END
+   ELSE
+    DO
+     FOR EACH CARD NAME
+      DO
+       FOR I=1 TO L
+        DO
+         IF CARD NAME:LONGNAME=LOANNAMES(I,1) THEN CARDLOC(I)=CARD:LOCATOR
+        END
+      END
+    END
+  END
+ FOR I=1 TO L
+  DO
+   [ JWJ 071520 Uncomment the following line to get around the following error ]
+   [ "All members for this VISA have an active credit card."]    
+   [ CARDLOC(I)=0 ]
+   IF CARDLOC(I)=0 THEN CNT=CNT+1
+  END
+
+ WHILE CHOOSETYPE="" AND NAMESEL=0
+  DO
+   HTMLVIEWOPEN(0)
+   HTMLVIEWLINE("<html>")
+   HTMLVIEWLINE("<head>")
+   HTMLVIEWLINE("<title>VISA Card Member Selection</title>")
+   HTMLVIEWLINE("<meta http-equiv=Content-Type content=text/html; charset=iso-8859-1>")
+   HTMLVIEWLINE("</head>")
+   HTMLVIEWLINE("<body bgcolor=#CCCCCC text=#000000>")
+   HTMLVIEWLINE(" <p align=center><font size=+2><b>VISA Card Member Selection</b></font></p>")
+   HTMLVIEWLINE(" <form name=INSTANTISSUE METHOD=POST ACTION=symitar://HTMLView~Action=Post>")
+   HTMLVIEWLINE("<table width=350 border=0 align=center>")
+   HTMLVIEWLINE(" <tr>")
+   IF CNT=0 THEN 
+    DO
+     HTMLVIEWLINE(" <td>All members for this VISA have an active credit card.</td>")
+    END
+   ELSE
+    DO
+     HTMLVIEWLINE("   <td>")
+     HTMLVIEWLINE("      <font size=4><b>Select Member name?</b></font><br>")
+     HTMLVIEWLINE("   <select name=namesel size="+FORMAT("99",CNT)+">") 
+     FOR I=1 TO L
+      DO
+       IF CARDLOC(I)=0 THEN 
+        DO
+         HTMLVIEWLINE("<option value="+FORMAT("99",I)+">"+LOANNAMES(I,1)+"</option>")
+        END
+      END
+     HTMLVIEWLINE(" </select>")
+     HTMLVIEWLINE("<br>If you do not see the name on this list then they either")
+     HTMLVIEWLINE("have an existing card or they are not on the loan.</td>")
+     HTMLVIEWLINE(" </tr>")
+     IF ACCOUNT:TYPE>=10 THEN
+      DO
+       HTMLVIEWLINE(" <tr>")
+       HTMLVIEWLINE("   <td><br><br><font size=4><b>Business Name</b></font><br>") 
+       HTMLVIEWLINE("   <input type=text name=busname size=40 maxlength=20 value='"+SEGMENT(BUSNAME,1,20)+"'><br>")
+       IF BUSNAME="" THEN HTMLVIEWLINE("Add a Business Name to the card?")
+       ELSE HTMLVIEWLINE("You can Change or Remove the Business Name if Needed.")
+       HTMLVIEWLINE("<br>Max 20 Characters allowed</td>")
+      END
+    END
+   HTMLVIEWLINE(" </tr>")
+   HTMLVIEWLINE(" </table>")
+   HTMLVIEWLINE("  <p align=center>")
+   IF CNT>0 THEN HTMLVIEWLINE("<INPUT TYPE=SUBMIT NAME=submitbutton VALUE=Submit>&nbsp;&nbsp;&nbsp;&nbsp;")
+   HTMLVIEWLINE("              <INPUT TYPE=SUBMIT NAME=close VALUE=Exit></p>")
+   HTMLVIEWLINE(" </form>")
+   HTMLVIEWLINE("</body>")
+   HTMLVIEWLINE("</html>")
+   HTMLVIEWDISPLAY
+   CALL LOADRESULTS
+   CALL SETVARIABLES
+   IF CHOOSETYPE="" AND NAMESEL=0 THEN POPUPMESSAGE(0,"You must select a name")
+  END
+ @ENVPARAMCHAR2=LOANNAMES(NAMESEL,2)
+ @ENVPARAMCHAR3=LNID
+ @ENVPARAMCHAR4=BUSNAME
+ @ENVPARAMCHAR5=CHOOSETYPE
+ @ENVPARAMNUMBER6=NAMELOCS(NAMESEL)
+END
+
+
+PROCEDURE LOADRESULTS
+ INPUTCOUNT=0
+ WHILE (INPUTFORM(INPUTCOUNT)<>"EOD")
+  DO
+   INPUTCOUNT=INPUTCOUNT+1
+   INPUTFORM(INPUTCOUNT)=ENTERLINE(0)
+  END
+END
+
+PROCEDURE SETVARIABLES
+ FOR II=1 TO INPUTCOUNT
+  DO
+   TMPCHR=INPUTFORM(II)
+   IF SEGMENT(TMPCHR,1,5)="close"            THEN CHOOSETYPE="CANCEL"
+   ELSE IF SEGMENT(TMPCHR,1,8)="namesel="    THEN NAMESEL=VALUE(SEGMENT(TMPCHR,9,LENGTH(TMPCHR)))
+   ELSE IF SEGMENT(TMPCHR,1,8)="busname="    THEN BUSNAME=SEGMENT(TMPCHR,9,LENGTH(TMPCHR))
+  END
+END

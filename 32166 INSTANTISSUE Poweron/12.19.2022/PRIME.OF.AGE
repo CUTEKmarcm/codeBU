@@ -1,0 +1,123 @@
+[
+****************************************************************************************
+*****  Copyright 2022 CUTEK. All rights reserved.                     rev 01-2022  *****
+*****                                                                              *****
+*****  This licensed source code may not be reproduced, displayed, modified or     *****
+*****  distributed without the express prior written permission of the copyright   *****
+*****  holder. As implemented with CUTEK products, code is licensed only for the   *****
+*****  license term of the agreement. For further information, contact             *****
+*****  sales@cutek.com                                                             *****
+****************************************************************************************
+
+ Client name:  Austin Telco
+ File name:    PRIME.OF.AGE
+ Created by:   CUTEK, Inc. - Marc Middleton
+ Created on:   DECEMBER 2022
+ CUTEK Ticket: 32166
+ 
+ Description:
+ ? Create batch process to convert to regular account (type0)/card(type 30) once member turns 18 (or 1 month prior <tbd>).
+	   ? Replacement card type 30 (regular debit)
+	   ? Account type = 0
+	   ? Expire Warning 173 - This removes International block
+ 
+ Modified by:  
+ Modified on:  
+ Modification: 
+]
+TARGET=ACCOUNT
+
+DEFINE
+ YOUTHCARD=31
+ REGCARD=30
+ CONVERTAGE=18
+ YOUTHACCT=0001
+ REGACCOUNT=0000
+ INTLBLOCKWARN=173
+ #INCLUDE "RD.OUTPUT.DEF"
+ OUTPUTCHANNEL1=NUMBER
+ ERRORTEXT=CHARACTER
+ ERRORTEXTIGNORE=CHARACTER 
+ PRIMAGE=NUMBER
+END
+
+SETUP
+ OUTPUTOPEN(OUTPUTDEVREPORT,0,"PRIME.OF.AGE.FM","FMREPORTS",OUTPUTCHANNEL1,ERRORTEXT)
+ IF ERRORTEXT<>"" THEN CALL ERRORHANDLER
+END
+
+SELECT
+ ACCOUNT:CLOSEDATE='--/--/--' AND
+ ACCOUNT:TYPE=YOUTHACCT
+END
+
+PRINT TITLE="PRIME.OF.AGE" REPORTCATEGORY="ACCOUNTRPT"  
+ PRIMAGE=NUMBER((SYSTEMDATE-NAME:BIRTHDATE)/365.25)
+ IF PRIMAGE >= CONVERTAGE THEN
+  DO
+   HEADERS
+    COL=001 "Account"
+    COL=016 RIGHT "Type"
+    COL=021 RIGHT "Age" 
+    NEWLINE
+    COL=001 REPEATCHR("=",21)
+   END  
+   COL=001 ACCOUNT:NUMBER
+   COL=016 ACCOUNT:TYPE
+   COL=021 PRIMAGE
+   CALL MODIFYACCTTYPE
+   FOR EACH CARD WITH CARD:TYPE=YOUTHCARD
+    DO
+     CALL MODIFYCARDTYPE
+     IF ANYWARNING(CARD,INTLBLOCKWARN) THEN
+      DO
+       CALL MODIFYCARDWARN
+      END
+    END
+  END 
+END
+
+PROCEDURE MODIFYACCTTYPE
+ OUTPUTSWITCH(OUTPUTCHANNEL1,ERRORTEXT)
+ HEADER=""
+ COL=01 "ACCOUNT " + ACCOUNT:NUMBER + " MODIFY"
+ NEWLINE
+ COL=03 "CHANGE TYPE FROM"
+ COL=49 ACCOUNT:TYPE
+ COL=90 "TO"
+ COL=96 REGACCOUNT
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)
+END 
+
+PROCEDURE MODIFYCARDTYPE
+ OUTPUTSWITCH(OUTPUTCHANNEL1,ERRORTEXT)
+ HEADER=""
+ COL=01 "ACCOUNT " + ACCOUNT:NUMBER + " MODIFY CARD LOC "
+ PRINT CARD:LOCATOR
+ NEWLINE
+ COL=03 "CHANGE TYPE FROM"
+ COL=49 CARD:TYPE
+ COL=90 "TO"
+ COL=96 REGCARD
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)
+END
+
+PROCEDURE MODIFYCARDWARN
+ OUTPUTSWITCH(OUTPUTCHANNEL1,ERRORTEXT)
+ HEADER=""
+ PRINT "ACCOUNT " + ACCOUNT:NUMBER + " MODIFY CARD LOC "
+ PRINT CARD:LOCATOR
+ NEWLINE
+ PRINT " CHANGE CLEARWARNING "
+ PRINT INTLBLOCKWARN
+ NEWLINE
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXT)
+END
+
+PROCEDURE ERRORHANDLER
+ OUTPUTSWITCH(OUTPUTCHANNELDEFAULT,ERRORTEXTIGNORE)
+ PRINT "Error: "+ERRORTEXT
+ NEWLINE
+ TERMINATE
+END
+

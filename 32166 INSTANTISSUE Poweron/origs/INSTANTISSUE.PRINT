@@ -1,0 +1,721 @@
+[INSTANTISSUE.PRINT]
+
+SUBROUTINE DEMAND WINDOWS
+[CARDCREATIONWIZARD] [<-- Uncomment this and comment WINDOWS to allow this to be run from card wizard]
+
+TARGET=ACCOUNT
+
+DEFINE
+
+  #INCLUDE "RD.GETDATA.DEF"
+  QUOTE=CHARACTER(1)
+  QT=CHARACTER(1)
+
+  TRUE=1
+  FALSE=0
+
+  FOUNDCARD=NUMBER
+
+  USERAUTHFILE     = "CARDPRINTING.USERS"
+  CFGFILENAME    = "CARDPRINTING.CFG"
+
+  [Postback variables]
+  INPUTCOUNT = NUMBER
+  INPUTFORM = CHARACTER ARRAY(999)
+  RETCOMMAND = CHARACTER
+  INPUT = CHARACTER
+  THEFIELD = CHARACTER	
+  THEVALUE = CHARACTER
+
+  [File Opening Variables]
+  FILENUMBER = NUMBER
+  FILETEXT = CHARACTER
+  FILEERROR = CHARACTER
+  FILENAME = CHARACTER
+
+  [Configuration Variables]
+  CFGLINE = CHARACTER 
+  TILDELOC = NUMBER
+  CFGLENGTH = NUMBER
+  URL = CHARACTER
+  TIMEOUT = CHARACTER(10)
+  INTERVAL = CHARACTER(10)
+  PRINTERS = CHARACTER
+  KEY = CHARACTER
+  KEYFILE = CHARACTER
+  BLK = CHARACTER(5)
+  PRINTERFILE = CHARACTER
+  SITEIDFILE = CHARACTER
+  MAXCHARS=NUMBER
+  IMGHEIGHT=CHARACTER
+  IMGWIDTH=CHARACTER
+  REPIN = CHARACTER(5)
+  PINPRINT = CHARACTER(5)
+  CREATECARDNOTE = CHARACTER(5)
+  IMAGEID = CHARACTER
+  REQIMGSEL = CHARACTER(5)
+  BINPAIRING = CHARACTER(5)
+  BINLENGTH=CHARACTER(1)
+  FRONTENDLOGGING = CHARACTER(5)
+  ACTIVATE=CHARACTER(5)
+
+  [Variables for updating card record]
+  CARDLOCATOR = NUMBER
+  CARDNUMBER = CHARACTER
+  CARDSUFFIX = CHARACTER(2)
+  OFFSET = NUMBER
+ 
+  PRIMENAME=CHARACTER(40)
+  JOINTNAME=CHARACTER(40)
+  OPTIONVALUE=CHARACTER
+  LNAME=CHARACTER(40)
+  PRIV=NUMBER
+  FMERROR = CHARACTER
+  CARDNOTETXT = CHARACTER ARRAY(3)
+  CARDNOTECODE = CHARACTER
+
+  [For Find and Replace]
+  STARTSTR = CHARACTER
+  FINDSTR  = CHARACTER
+  REPLACESTR = CHARACTER
+  TEMPSTR  = CHARACTER
+  TMPSTR1 = CHARACTER
+  TMPSTR2 = CHARACTER
+
+  [Variables for Card Type logic]
+  EPISYSTYPE=NUMBER ARRAY(99)
+  EFTTYPE=NUMBER ARRAY(99)
+  EFTBINLENGTH=NUMBER ARRAY(99)
+  TEMP=CHARACTER
+  I=NUMBER
+
+  [Permission Variables]
+  USERNUM          = CHARACTER
+  USERROLE         = CHARACTER
+  CURRENTUSER      = CHARACTER
+ 
+  [*** ATFCU VARIABLES]
+  CARDNBR=CHARACTER
+  ALLCARDS=CHARACTER   ARRAY(1000)
+  AI=NUMBER
+  AL=NUMBER
+END
+
+SETUP
+ CARDNBR=@ENVPARAMCHAR1   [*** ATFCU Added]
+ LNAME=@ENVPARAMCHAR2     [*** ATFCU Added]
+ QUOTE=CTRLCHR(34)
+ QT=CTRLCHR(34)
+ RETCOMMAND="continue"
+
+ [If user does not have priviledge to do account FM or Card FM then do not allow them to run it]
+ [ JJ 071520 Removed privilege check per Raye Anne ticket # 23541 ]
+ [
+ IF GETDATANUMBER(GETUSERPRIVILEGE,SYSUSERNUMBER,234)=0 THEN
+  DO
+   POPUPMESSAGE(0,"You do not have the required permission, CARD REVISION, to run this Repgen")
+   RETCOMMAND="close"
+  END
+
+ IF GETDATANUMBER(GETUSERPRIVILEGE,SYSUSERNUMBER,5)=0  THEN
+  DO
+   POPUPMESSAGE(0,"You do not have the required permission, ACCOUNT FILE MAINTENANCE, to run this Repgen")
+   RETCOMMAND="close"
+  END
+ ]
+
+ IF RETCOMMAND="continue" THEN
+  DO
+   CALL CHECKUSERFILE
+   IF RETCOMMAND<>"close" THEN
+    DO
+     PRINTERFILE = FORMAT("999",SYSSYMDIRECTORY) + "." + FORMAT("9999",GETDATANUMBER(GETCONSOLEBRANCH,SYSCONSOLENUM)) + ".CARDPRINTING.PRN"
+     CALL GETCFGINFO
+     IF (BLK = "True") THEN
+      KEYFILE = FORMAT("999",SYSSYMDIRECTORY) + "." + FORMAT("9999",GETDATANUMBER(GETCONSOLEBRANCH,SYSCONSOLENUM)) + ".CARDPRINTING.KEY"
+     ELSE
+      KEYFILE = FORMAT("999",SYSSYMDIRECTORY) + ".CARDPRINTING.KEY"
+
+     CALL LOADCARDTYPE
+     CALL GETKEY
+     IF RETCOMMAND<>"close" THEN 
+      DO
+       CALL GETPRINTER
+       IF RETCOMMAND<>"close" THEN 
+        DO
+         CALL CHECKACCTINFO
+         IF RETCOMMAND<>"close" THEN
+          DO
+           CALL GENERATEHTML
+           WHILE (RETCOMMAND<>"close")
+            DO
+             CALL HANDLEHTMLINPUT
+             IF RETCOMMAND = "print" THEN CALL SAVECARDINFO
+             IF RETCOMMAND = "PIN"   THEN CALL SAVECARDINFOPIN
+             IF RETCOMMAND = "ACT"   THEN CALL SAVECARDINFOACT
+            END [While]
+          END [IF]
+        END [IF]
+      END [IF]
+    END [IF]
+  END [IF]
+END
+
+PRINT TITLE="CARDPRINTING.XXX"
+  SuppressNewLine
+END
+
+PROCEDURE GENERATEHTML
+ HTMLVIEWOPEN(0)
+ HTMLVIEWLINE("<!DOCTYPE html PUBLIC "+QUOTE+"-//W3C//DTD HTML 4.01 Transitional//EN"+QUOTE+"")
+ HTMLVIEWLINE(" "+QUOTE+"http://www.w3.org/TR/html4/loose.dtd"+QUOTE+">")
+ HTMLVIEWLINE("<html>")
+ HTMLVIEWLINE("<head>")
+ HTMLVIEWLINE("<meta http-equiv='Content-Type' content='text/html; charset=ISO-8859-1'>")
+ HTMLVIEWLINE("<meta http-equiv='cache-control' content='max-age=0' />")
+ HTMLVIEWLINE("<meta http-equiv='cache-control' content='no-cache' />")
+ HTMLVIEWLINE("<meta http-equiv='expires' content='0' />")
+ HTMLVIEWLINE("<meta http-equiv='expires' content='Tue, 01 Jan 1980 1:00:00 GMT' />")
+ HTMLVIEWLINE("<meta http-equiv='pragma' content='no-cache' />")
+ HTMLVIEWLINE("<meta http-equiv='X-UA-Compatible' content='IE=edge'>")
+ HTMLVIEWLINE("<title>Card Printing</title>")
+ 
+ [Loading Style Sheet data]
+ FILENAME="CARDPRINTING.CSS"
+ CALL GETJSCSSSCRIPT
+
+ IF FRONTENDLOGGING = "TRUE" THEN
+   HTMLVIEWLINE("<script src='log4javascript.js' type='text/javascript'></script>")
+ 
+ [Loading Javascript data]
+ FILENAME="CARDPRINTING.JS"
+ CALL GETJSCSSSCRIPT
+
+ HTMLVIEWLINE("</head>")
+ IF FRONTENDLOGGING = "FALSE" THEN HTMLVIEWLINE("<body onload=' ")
+ ELSE
+  HTMLVIEWLINE("<body onload='initLogging(" + QT + URL + QT + "," + QT + FORMAT("9999",SYSUSERNUMBER) + QT + "); ")
+ HTMLVIEWLINE(" schedPrinterStat(" + INTERVAL + "," + TIMEOUT + "," + "")
+ HTMLVIEWLINE("" + QT + URL + QT + "," )
+ HTMLVIEWLINE("" + QT + KEY + QT + ");popFields();loadPrinters(); ")
+ HTMLVIEWLINE(" imagesReq(" + QT + URL  + QT + "," )
+ HTMLVIEWLINE("" + QT + IMGHEIGHT + QT)
+ HTMLVIEWLINE("" + "," + QT + IMGWIDTH + QT + "," + QT + BINPAIRING + QT + ");")
+ HTMLVIEWLINE(" '>")
+ HTMLVIEWLINE("<form name='cardPrinting' id='cardPrinting' method='POST' action='Symitar://HTMLView~Action=Post'>")
+ HTMLVIEWLINE("<input type='hidden' name='retCommand' id='retCommand' value='close'> ")
+ HTMLVIEWLINE("<input type='hidden' name='cardNumber' id='cardNumber'> ")
+ HTMLVIEWLINE("<input type='hidden' name='cardLocator' id='cardLocator'> ")
+ HTMLVIEWLINE("<input type='hidden' name='cardSuffix' id='cardSuffix'> ")
+ HTMLVIEWLINE("<input type='hidden' name='cardType' id='cardType'> ")
+ HTMLVIEWLINE("<input type='hidden' name='binLength' id='binLength'> ")
+ HTMLVIEWLINE("<input type='hidden' name='offset' id='offset'> ")
+ HTMLVIEWLINE("<input type='hidden' name='back' id='back'> ")
+ HTMLVIEWLINE("<input type='hidden' name='jobID' id='jobID'> ")
+ HTMLVIEWLINE("<input type='hidden' name='printerID' id='printerID'> ")
+ HTMLVIEWLINE("<input type='hidden' name='printers' id='printers' value='" + PRINTERS + "'> ")
+ HTMLVIEWLINE("<input type='hidden' name='repin' id='repin' value='" + REPIN + "'> ")
+ HTMLVIEWLINE("<input type='hidden' name='pinprint' id='pinprint' value='" + PINPRINT + "'> ")
+ HTMLVIEWLINE("<input type='hidden' name='frontEndLog' id='frontEndLog' value='" + FRONTENDLOGGING + "'> ")
+ HTMLVIEWLINE("<input type='hidden' name='permissions' id='permissions' value='" + CURRENTUSER + "'> ")
+ HTMLVIEWLINE("<input type='hidden' name='activ' id='activ' value='" + ACTIVATE + "'> ")
+ HTMLVIEWLINE(" <table>")
+ HTMLVIEWLINE("  <thead>")
+ HTMLVIEWLINE("   <tr><td class='header' colspan='4'>Card Printing</td></tr>")
+ HTMLVIEWLINE("  </thead>")
+ HTMLVIEWLINE("  <tbody>")
+ HTMLVIEWLINE("  <tr><td>&nbsp;</td></tr>")
+ HTMLVIEWLINE("  <tr>")
+ HTMLVIEWLINE("  <td>Printer Status:</td>")
+ HTMLVIEWLINE("  <td colspan = '3'><input type='text' id='printerStatus'  class='status' value=''></td>")
+ HTMLVIEWLINE("  </tr>")
+ HTMLVIEWLINE("  <tr>")
+ HTMLVIEWLINE("   <td>Process Status:</td>")
+ HTMLVIEWLINE("   <td colspan = '3'><input type='text' id='processStatus'  class='status' value=''></td>")
+ HTMLVIEWLINE("  </tr>")
+ HTMLVIEWLINE("   <tr>")
+ HTMLVIEWLINE("   <td>Card:</td>")
+ HTMLVIEWLINE("   <td>")
+
+ FOR AI=1 TO AL
+  DO
+   POPUPMESSAGE(1,ALLCARDS(AI))
+  END
+ 
+ HTMLVIEWLINE("    <select name='cardSelect' id='cardSelect' onchange='popFields(); ")  
+ IF  BINPAIRING = "TRUE" THEN
+  DO
+   HTMLVIEWLINE("        imagesReq(" + QT + URL  + QT + "," )
+   HTMLVIEWLINE("" + QT + IMGHEIGHT + QT)
+   HTMLVIEWLINE("" + "," + QT + IMGWIDTH + QT + "," + QT + BINPAIRING + QT + ");")
+  END
+ HTMLVIEWLINE(" '>")
+ FOR AI=1 TO AL
+  DO
+   HTMLVIEWLINE(ALLCARDS(AI))
+  END
+ HTMLVIEWLINE("    </select>")
+ HTMLVIEWLINE("   </td>")
+ HTMLVIEWLINE("  <td id='PrinterTD'>Printer: ")
+ HTMLVIEWLINE("  <select id='printerSel' name='printerSel' onchange='popPrinterID();")
+ HTMLVIEWLINE(" schedPrinterStat(" + INTERVAL + "," + TIMEOUT + "," + "")
+ HTMLVIEWLINE("" + QT + URL + QT + "," )
+ HTMLVIEWLINE("" + QT + KEY + QT + ");")
+ HTMLVIEWLINE(" imagesReq(" + QT + URL  + QT + "," )
+ HTMLVIEWLINE("" + QT + IMGHEIGHT + QT)
+ HTMLVIEWLINE("" + "," + QT + IMGWIDTH + QT + "," + QT + BINPAIRING + QT)
+ HTMLVIEWLINE("" + "," + QT + BINLENGTH + QT + ");'")
+ HTMLVIEWLINE("></select></td>")
+ HTMLVIEWLINE("  </tr>")
+ HTMLVIEWLINE("  <tr><td>&nbsp;</td></tr>")
+ HTMLVIEWLINE("  <tr>")
+ HTMLVIEWLINE("   <td>Name:</td>")
+ HTMLVIEWLINE("   <td>") 
+ HTMLVIEWLINE("       <input type='text' id='name' maxlength='" + FORMAT("99",MAXCHARS) + "'")
+ HTMLVIEWLINE("        class='name' disabled>")
+ HTMLVIEWLINE("  </td>")
+ HTMLVIEWLINE("   <td id= 'backgnd' ")
+ HTMLVIEWLINE(" >  Background:")
+ HTMLVIEWLINE(" <input type='text' id='backID' name='backID'></td> ")
+ HTMLVIEWLINE("  </tr>")
+ HTMLVIEWLINE("  <tr>")
+ HTMLVIEWLINE("   <td align='top'>Name 2:</td>")
+ HTMLVIEWLINE("   <td> ")
+ HTMLVIEWLINE("      <input type='text' id='name2' class='name' maxlength='" + FORMAT("99",MAXCHARS) + "' disabled>")
+ HTMLVIEWLINE("   </td>")
+ HTMLVIEWLINE("    <td id='backgndfrm' ")
+ HTMLVIEWLINE("    colspan='2' rowspan='9' ")
+ HTMLVIEWLINE(">")
+ HTMLVIEWLINE("     <iframe id='imagesFrame' name='imagesFrame' class='imageFrame'></iframe></td>")
+ HTMLVIEWLINE("  </tr>")
+ HTMLVIEWLINE("  <tr>")
+ HTMLVIEWLINE("   <td>Exp Date:</td>")
+ HTMLVIEWLINE("   <td><input type='text' id='expDate' disabled></td>")
+ HTMLVIEWLINE("  </tr>")
+ HTMLVIEWLINE("  <tr ") 
+ HTMLVIEWLINE("  >")
+ HTMLVIEWLINE("   <td>Offset:</td>")
+ HTMLVIEWLINE("   <td><input type='text' id='offsetDef' disabled></td>")
+ HTMLVIEWLINE("  </tr>")
+ HTMLVIEWLINE("  <tr>")
+ HTMLVIEWLINE("   <td>")
+ HTMLVIEWLINE("     <input class='button' type='button' id='submitPIN' value='PIN Only'")
+ [IF REPIN = "FALSE" OR SEGMENT(CURRENTUSER,1,1) = "0" THEN] [*** ATFCU REPIN IN SEPARATE PROGRAM]
+ HTMLVIEWLINE("      style='display: none;' ")
+ HTMLVIEWLINE("      onmousedown='setPINMessage();' ")
+ HTMLVIEWLINE("        onclick='return getPIN(" + INTERVAL + "," + TIMEOUT + "," + "")
+ HTMLVIEWLINE("" + QT + URL + QT + "," )
+ HTMLVIEWLINE("" + QT + FORMAT("9999",SYSUSERNUMBER) + QT + "," )
+ HTMLVIEWLINE("" + QT + KEY + QT + ");'>")
+ HTMLVIEWLINE("   </td>")
+ HTMLVIEWLINE("   <td>")
+ HTMLVIEWLINE("     <input type='button' class='button' id='submitPrint' value='Print'")
+ HTMLVIEWLINE("      onclick='return sendFullPrintRequest( ") 
+ HTMLVIEWLINE("" + QT + URL + QT + "," )
+ HTMLVIEWLINE("" + QT + FORMAT("9999",SYSUSERNUMBER)  + QT + "," )
+ HTMLVIEWLINE("" + QT + "0" + QT + "," )
+ HTMLVIEWLINE("" + QT + KEY + QT + "," + INTERVAL + "," + TIMEOUT + "," + QT + REQIMGSEL + QT + "," + QT + ACTIVATE + QT +");'>")
+ HTMLVIEWLINE("   </td>")
+ HTMLVIEWLINE("  <tr>")
+ HTMLVIEWLINE("   <td>")
+ HTMLVIEWLINE("     <input class='button' type='submit' id='finishFull' value='Finish'")
+ HTMLVIEWLINE("      style='display: none;'> ")
+ HTMLVIEWLINE("     <input type='button' class='button' id='submitPINPrint' value='PIN & Print'")
+ IF PINPRINT = "FALSE" OR SEGMENT(CURRENTUSER,3,3) = "0" THEN
+   HTMLVIEWLINE("      style='display: none;' ")
+ HTMLVIEWLINE("      onmousedown='setPINMessage();' ")
+ HTMLVIEWLINE("      onclick='return sendFullPrintRequest( ") 
+ HTMLVIEWLINE("" + QT + URL + QT + "," )
+ HTMLVIEWLINE("" + QT + FORMAT("9999",SYSUSERNUMBER) + QT + "," )
+ HTMLVIEWLINE("" + QT + "1" + QT + "," )
+ HTMLVIEWLINE("" + QT + KEY + QT + "," + INTERVAL + "," + TIMEOUT + "," + QT + REQIMGSEL + QT + "," + QT + ACTIVATE + QT +");'>")
+ HTMLVIEWLINE("   </td>")
+ [HTMLVIEWLINE("   <td><input type='button' class='button' id='activate' value='Activate' ")
+ IF ACTIVATE = "FALSE"  THEN HTMLVIEWLINE("      style='display: none;' ")
+ HTMLVIEWLINE("      onmousedown='setActMessage();' ")
+ HTMLVIEWLINE("      onclick='return activateCard( ") 
+ HTMLVIEWLINE("" + QT + URL + QT + "," )
+ HTMLVIEWLINE("" + QT + FORMAT("9999",SYSUSERNUMBER) + QT + "," )
+ HTMLVIEWLINE("" + QT + KEY + QT + "," + QT + ACTIVATECONFIRM + QT +");'>")
+ HTMLVIEWLINE("   </td>")
+ HTMLVIEWLINE("  </tr>")
+ HTMLVIEWLINE("  <tr>")]
+ HTMLVIEWLINE("   </td>")
+ HTMLVIEWLINE("   <td><input type='button' class='button' id='cancel' value='Cancel' onClick='exitForm();")
+ HTMLVIEWLINE(" logInfo(" + QT + "Clicked Cancel" + QT + "," + QT + FORMAT("9999",SYSUSERNUMBER) + QT + ");'></td>")
+ HTMLVIEWLINE("  </tr>")
+ HTMLVIEWLINE("  <tr height='200'><td><input type='hidden' name='intervalID' id='intervalID'></td></tr>")
+ HTMLVIEWLINE("  <tr><td><input type='hidden' name='intervalPINID' id='intervalPrint'></td></tr>")
+ HTMLVIEWLINE("  <tr><td><input type='hidden' name='intervalPINID' id='intervalPINID'></td></tr>")
+ HTMLVIEWLINE("  <tr><td><input type='hidden' name='intervalBlink' id='intervalBlink'></td></tr>")
+ HTMLVIEWLINE("  <tr><td><input type='hidden' name='initID' id='initID'></td></tr>")
+ HTMLVIEWLINE("</tbody>")
+ HTMLVIEWLINE("</table>")
+ HTMLVIEWLINE("</form>")
+ HTMLVIEWLINE("</body>")
+ HTMLVIEWDISPLAY
+END [Procedure GENERATEHTML]
+
+
+PROCEDURE GETJSCSSSCRIPT
+ FILEOPEN("REPGEN", FILENAME, "READ", FILENUMBER, FILEERROR)
+ IF (FILEERROR <> "") THEN
+  DO
+   POPUPMESSAGE(0, "Failed to open " + FILENAME)
+   RETCOMMAND="close"
+  END [If]
+ IF RETCOMMAND<>"close" THEN
+  DO
+   WHILE FILEERROR = ""
+    DO
+     FILEREADLINE(FILENUMBER, FILETEXT, FILEERROR)
+     HTMLVIEWLINE(FILETEXT)
+    END [While]
+   FILECLOSE(FILENUMBER, FILEERROR)
+  END [IF]
+END  [Procedure GETJSCSSSCRIPT]
+
+PROCEDURE HANDLEHTMLINPUT
+ INPUTCOUNT = 0
+ WHILE (INPUTFORM(INPUTCOUNT) <> "EOD")
+  DO
+   INPUT=ENTERLINE(0)
+   INPUTCOUNT=INPUTCOUNT + 1
+   INPUTFORM(INPUTCOUNT) = INPUT
+   IF (CHARACTERSEARCH(INPUTFORM(INPUTCOUNT), "retCommand=") = 1) THEN
+    DO
+     RETCOMMAND = SEGMENT(INPUTFORM(INPUTCOUNT), CHARACTERSEARCH(INPUTFORM(INPUTCOUNT), "=") + 1, LENGTH(INPUTFORM(INPUTCOUNT)))
+    END
+   ELSE
+    DO
+     THEFIELD=SEGMENT(INPUT,1,CHARACTERSEARCH(INPUT,"=")-1)
+     THEVALUE=SEGMENT(INPUT,CHARACTERSEARCH(INPUT,"=")+1,LENGTH(INPUT))
+     CALL READSCREEN
+    END [If]
+  END [While]
+END [Procedure HANDLEHTMLINPUT]
+
+
+PROCEDURE READSCREEN
+ IF THEFIELD = "cardSuffix"  THEN CARDSUFFIX = THEVALUE
+ IF THEFIELD = "cardNumber"  THEN CARDNUMBER = THEVALUE
+ IF THEFIELD = "cardLocator" THEN CARDLOCATOR = VALUE(THEVALUE)
+ IF THEFIELD = "offset"      THEN OFFSET = VALUE(THEVALUE)
+ IF THEFIELD = "back"        THEN IMAGEID = THEVALUE
+END [Procedure READSCREEN]
+
+
+[Procedure to read File CARDPRINTING.CFG]
+PROCEDURE GETCFGINFO
+ FILEOPEN("REPGEN",CFGFILENAME,"READ",FILENUMBER,FILEERROR)
+ IF FILEERROR<>"" THEN
+  DO
+   POPUPMESSAGE(2,"There was an error opening the Card Printing config file: "+FILEERROR)
+   FILECLOSE(FILENUMBER,FILEERROR)
+   RETCOMMAND="close"
+  END
+ ELSE
+  DO
+   FILEREADLINE(FILENUMBER,CFGLINE,FILEERROR)
+   WHILE (FILEERROR="")
+    DO
+     TILDELOC  = CHARACTERSEARCH(CFGLINE,"~")
+     CFGLENGTH = LENGTH(CFGLINE)
+     [-- DETERMINE WHAT DATA IS BEING ACQUIRED --]
+     IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="EFTURL" THEN
+       URL = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="TIMEOUT" THEN
+       TIMEOUT = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="INTERVAL" THEN
+       INTERVAL = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="BRANCHLEVELKEY" THEN
+       BLK = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="MAXNAMECHARS" THEN
+      MAXCHARS = VALUE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="IMAGEHEIGHT" THEN
+       IMGHEIGHT = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="IMAGEWIDTH" THEN
+       IMGWIDTH = SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH)
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="REPIN" THEN
+       REPIN = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="CREATECARDNOTE" THEN
+       CREATECARDNOTE = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="REQUIREIMAGESELECTION" THEN
+       REQIMGSEL = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="BINIMAGEPAIRING" THEN
+       BINPAIRING = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="PINPRINT" THEN
+       PINPRINT = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="FRONTENDLOGGING" THEN
+       FRONTENDLOGGING = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+     ELSE IF UPPERCASE(SEGMENT(CFGLINE,1,TILDELOC-1))="ACTIVATE" THEN
+       ACTIVATE = UPPERCASE(SEGMENT(CFGLINE,TILDELOC+1,CFGLENGTH))
+     FILEREADLINE(FILENUMBER,CFGLINE,FILEERROR)
+    END [While]
+   FILECLOSE(FILENUMBER,FILEERROR)
+   IF FILEERROR<>"" THEN
+    DO
+     POPUPMESSAGE(2,"There was an error closing the Card Printing config file: "+FILEERROR)
+     RETCOMMAND="close"
+    END [If FileError on Close]
+  END [If FileError on Open]
+END [Procedure]
+
+PROCEDURE GETKEY
+ FILEOPEN("DATA", KEYFILE, "READ", FILENUMBER, FILEERROR)
+ IF FILEERROR <> "" THEN
+  DO
+   POPUPMESSAGE(0, "Failed to open " + KEYFILE)
+   RETCOMMAND="close"
+  END
+ ELSE 
+  DO
+   FILEREADLINE(FILENUMBER, KEY, FILEERROR)
+   IF FILEERROR <> "" THEN
+    DO
+     POPUPMESSAGE(0, "Failure trying to read " + KEYFILE)
+     RETCOMMAND="close"
+    END
+   FILECLOSE(FILENUMBER, FILEERROR)
+  END
+END   [ -- Procedure GETKEY -- ]
+
+PROCEDURE GETPRINTER
+ FILEOPEN("DATA", PRINTERFILE, "READ", FILENUMBER, FILEERROR)
+ IF FILEERROR <> "" THEN
+  DO
+   POPUPMESSAGE(0, "Failed to open " + PRINTERFILE)
+   RETCOMMAND="close"
+  END
+ ELSE
+  DO
+   FILEREADLINE(FILENUMBER, PRINTERS, FILEERROR)
+   IF FILEERROR <> "" THEN
+    DO
+     POPUPMESSAGE(0, "Failure trying to read " + PRINTERFILE)
+     RETCOMMAND="close"
+    END
+   FILECLOSE(FILENUMBER, FILEERROR)
+  END
+END   [ -- Procedure GETPRINTER -- ]
+
+
+PROCEDURE SAVECARDINFOACT
+ FMPERFORM REVISE CARD LOC CARDLOCATOR (0,0,FILEERROR)
+  DO
+   SET STATUS TO 1
+   SET INSTANTISSUE TO 1
+   SET PINOFFSET TO OFFSET
+   SET EFFECTIVEDATE TO SYSTEMDATE
+   SET IMAGEREFNUMBER TO IMAGEID
+   SET ACTIVEDATE TO SYSTEMDATE
+  END
+ IF FILEERROR<>"" THEN
+  DO
+   POPUPMESSAGE(0,FILEERROR)
+   RETCOMMAND="close" 
+  END
+ ELSE
+  DO
+   IF CREATECARDNOTE = "TRUE" THEN
+    DO  
+     CARDNOTETXT(1) = "Instant Issued and activated " + FORMAT("99/99/9999", SYSTEMDATE) + " - " + FORMAT("99:99", SYSACTUALTIME)
+     CALL WRITECARDNOTE
+    END
+   POPUPMESSAGE (0, "Card " + CARDNUMBER + " " + CARDSUFFIX + " successfully issued,printed, and activated")
+   RETCOMMAND="close" 
+  END 
+END
+
+PROCEDURE SAVECARDINFOPIN
+ FMPERFORM REVISE CARD LOC CARDLOCATOR (0,0,FILEERROR)
+  DO
+   SET PINOFFSET TO OFFSET
+  END
+ IF FILEERROR<>"" THEN
+  DO
+   POPUPMESSAGE(0,FILEERROR)
+   RETCOMMAND="close" 
+  END
+ ELSE
+  DO
+   IF CREATECARDNOTE = "TRUE" THEN
+    DO  
+     CARDNOTETXT(1) = "PIN changed " + FORMAT("99/99/9999", SYSTEMDATE) + " - " + FORMAT("99:99", SYSACTUALTIME)
+     CALL WRITECARDNOTE
+    END
+   POPUPMESSAGE (0, "PIN Offset has successfully been generated and updated "+FORMAT("9999",OFFSET))
+   RETCOMMAND="close" 
+  END 
+END
+
+
+PROCEDURE SAVECARDINFO
+ FMPERFORM REVISE CARD LOC CARDLOCATOR (0,0,FILEERROR)
+  DO
+   SET STATUS TO 1
+   SET INSTANTISSUE TO 1
+   SET PINOFFSET TO OFFSET
+   SET EFFECTIVEDATE TO SYSTEMDATE
+   SET IMAGEREFNUMBER TO IMAGEID
+  END
+ IF FILEERROR<>"" THEN
+  DO
+   POPUPMESSAGE(0,FILEERROR)
+   RETCOMMAND="close" 
+  END
+ ELSE
+  DO
+   IF CREATECARDNOTE = "TRUE" THEN
+    DO  
+     CARDNOTETXT(1) = "Instant Issued " + FORMAT("99/99/9999", SYSTEMDATE) + " - " + FORMAT("99:99", SYSACTUALTIME)
+     CALL WRITECARDNOTE
+    END
+   POPUPMESSAGE (0, "Card " + CARDNUMBER + " " + CARDSUFFIX + " successfully issued and printed")
+   RETCOMMAND="close"  
+  END 
+END
+
+
+PROCEDURE WRITECARDNOTE
+ CARDNOTETXT(2) = "Branch: " + FORMAT("9999", GETDATANUMBER(GETCONSOLEBRANCH, SYSCONSOLENUM))
+ CARDNOTETXT(3) = "User: " + FORMAT("9999", SYSUSERNUMBER) + " - " + CAPITALIZE(SYSUSERNAME(SYSUSERNUMBER))
+ FMPERFORM CREATE CARD LOC CARDLOCATOR NOTE BEFOREFIRST (0, 0, FMERROR)
+  DO
+   SET CODE TO VALUE(CARDNOTECODE)
+   SET TEXT:1 TO CARDNOTETXT(1)
+   SET TEXT:2 TO CARDNOTETXT(2)
+   SET TEXT:3 TO CARDNOTETXT(3)
+  END
+ IF FMERROR <> "" THEN POPUPMESSAGE(0, "Error writing card note: " + FMERROR)
+END [Procedure WRITECARDNOTE]
+
+PROCEDURE FINDREPLACE
+ TEMPSTR=STARTSTR
+ WHILE CHARACTERSEARCH(TEMPSTR,FINDSTR)<>0
+  DO
+   IF CHARACTERSEARCH(TEMPSTR,FINDSTR) = 1 THEN
+     TEMPSTR = SEGMENT(TEMPSTR,2,LENGTH(TEMPSTR))
+   ELSE
+    DO
+     TMPSTR1 = SEGMENT(TEMPSTR,1,(CHARACTERSEARCH(TEMPSTR,FINDSTR))-1)+REPLACESTR    [1ST PIECE ]
+     TMPSTR2 = SEGMENT(TEMPSTR,(CHARACTERSEARCH(TEMPSTR,FINDSTR))+1,LENGTH(TEMPSTR)) [2ND PIECE ]
+     TEMPSTR = TMPSTR1 + TMPSTR2
+    END [of else clause]
+  END [of while loop]
+ STARTSTR=TEMPSTR
+END [of procedure]
+
+PROCEDURE LOADCARDTYPE
+ FILEOPEN("REPGEN", "CARDPRINTING.TYPE", "READ", FILENUMBER, FILEERROR)
+ I=0
+ IF FILEERROR= "" THEN
+  DO
+   WHILE FILEERROR= ""
+    DO
+     FILEREAD(FILENUMBER, 2, TEMP, FILEERROR)
+     EPISYSTYPE(I)=VALUE(TEMP)
+     FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+     FILEREAD(FILENUMBER, 2, TEMP, FILEERROR)
+     EFTTYPE(I)=VALUE(TEMP)
+     FILEREAD(FILENUMBER, 1, TEMP, FILEERROR)
+     FILEREADLINE(FILENUMBER, TEMP, FILEERROR)
+     EFTBINLENGTH(I)=VALUE(TEMP)
+     I=I+1
+    END
+   FILECLOSE(FILENUMBER, FILEERROR)
+  END
+END   [ -- Procedure LOADCARDTYPE -- ]
+
+PROCEDURE CHECKUSERFILE
+ FILEOPEN("DATA", USERAUTHFILE, "READ", FILENUMBER, FILEERROR)
+ IF FILEERROR = "" THEN
+  DO
+   WHILE FILEERROR = ""
+    DO
+     FILEREAD(FILENUMBER, 4, USERNUM, FILEERROR)
+     FILEREAD(FILENUMBER, 1, TEMP, FILEERROR) [First Comma]
+     FILEREADLINE(FILENUMBER, USERROLE, FILEERROR)
+     IF USERNUM = FORMAT("9999",SYSUSERNUMBER) THEN
+      DO
+       CURRENTUSER = USERROLE
+       FILEERROR="FOUND"
+      END
+    END
+   FILECLOSE(FILENUMBER, FILEERROR)
+  END
+END   [ -- Procedure CHECKUSERFILE -- ]
+
+PROCEDURE CHECKACCTINFO
+ FOR ACCOUNT ACCOUNT:NUMBER
+  DO
+   FOR EACH NAME WITH NAME:TYPE = 0
+    DO
+     PRIMENAME = NAME:LONGNAME
+    END
+   FOR EACH NAME WITH NAME:TYPE = 1
+    DO
+     [I want first joint name here]
+     IF JOINTNAME="" THEN JOINTNAME = NAME:LONGNAME
+    END
+  END
+ PRIMENAME = SEGMENT(PRIMENAME,1,MAXCHARS)
+ JOINTNAME = SEGMENT(JOINTNAME,1,MAXCHARS)
+ FOUNDCARD=FALSE
+ FOR ACCOUNT ACCOUNT:NUMBER
+  DO
+   [FOR EACH CARD WITH CARD:LOCATOR = @CARDLOC1] [<-- Uncomment and comment below line if running from card wizard]
+   [FOR EACH CARD WITH CARD:CLOSEDATE='-/-/-' AND CARD:STATUS<>2] [*** ATFCU Remmoved]
+   FOR EACH CARD WITH CARD:NUMBER=CARDNBR        [*** ATFCU look for card selected in instant issue]
+    DO
+     FOUNDCARD=TRUE
+     OPTIONVALUE=FORMAT("99",MONTH(CARD:EXPIRATIONDATE-1))+""+ SEGMENT(FORMAT("9999",FULLYEAR(CARD:EXPIRATIONDATE-1)),3,4)
+     [OPTIONVALUE=OPTIONVALUE+FORMAT("9999",CARD:PINOFFSET)] [*** ATFCU Removed]
+     OPTIONVALUE=OPTIONVALUE+"0000"                         [*** ATFCU Added Always ask for new PIN]
+     FOR I = 0 TO 99
+      DO
+       IF (CARD:TYPE = EPISYSTYPE(I)) THEN
+        DO
+         OPTIONVALUE=OPTIONVALUE+FORMAT("99",EFTTYPE(I))
+         OPTIONVALUE=OPTIONVALUE+FORMAT("99",EFTBINLENGTH(I))
+         I=100
+        END
+      END
+     [IF I = 100 then it looped through all and did not find a match...not good]
+     IF (I=100) THEN
+      DO
+       POPUPMESSAGE(0, "You have some Episys card types on this account that have not been set up in CARDPRINTING.TYPE. Application will close!")
+       RETCOMMAND="close"
+      END
+    [LNAME=""                                              [*** ATFCU Removed because name is passed]
+    IF CARD:NAMETYPE= 0 THEN LNAME=PRIMENAME
+    ELSE IF CARD:NAMETYPE=1 THEN LNAME=JOINTNAME
+    ELSE IF CARD:NAMETYPE = 2 THEN
+     DO
+      FOR EACH CARD NAME
+       DO
+        [I want first name record]
+        IF LNAME="" THEN LNAME=CARD NAME:LONGNAME
+       END
+     END
+    LNAME = SEGMENT(LNAME,1,MAXCHARS)]
+    OPTIONVALUE=OPTIONVALUE+ " " + LNAME + "~" + SEGMENT(CARD:EXTRAEMBOSS,1,MAXCHARS)
+    OPTIONVALUE=OPTIONVALUE+ "@" + FORMAT("999999999",CARD:LOCATOR)   
+    FINDSTR  = "'"
+    REPLACESTR = "&#39;"
+    STARTSTR = OPTIONVALUE
+    CALL FINDREPLACE
+    OPTIONVALUE = STARTSTR
+    AL=AL+1
+    ALLCARDS(AL)="<option value='"+ OPTIONVALUE + "'"
+    IF CARD:SUFFIX="" THEN ALLCARDS(AL)=ALLCARDS(AL)+">"+CARD:NUMBER+ "</option>"
+    ELSE
+     ALLCARDS(AL)=ALLCARDS(AL)+">"+CARD:NUMBER+ " " + FORMAT("99",VALUE(CARD:SUFFIX)) + "</option>"
+   END [For Card]
+  END [For Account Num]
+ IF FOUNDCARD=FALSE THEN
+  DO
+   POPUPMESSAGE(0,"No valid cards records found...")
+   RETCOMMAND="close"
+  END
+END
