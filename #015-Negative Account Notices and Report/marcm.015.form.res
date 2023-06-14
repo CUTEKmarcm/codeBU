@@ -1,0 +1,416 @@
+[marcm.015.form.res]
+[Created by SYMFORM.CREATOR on 08/25/2008
+ Driver           - NEGATIVENOTICE
+ Field Assignment - NEGATIVENOTICE.INC
+ Symform Commands - NEGATIVENOTICE.SYMFORM
+ Form file name   - NEGATIVENOTICE.SFF
+
+ SyRTS Number  :
+ Credit Union  :
+ Form          :
+ Form Source   :
+
+ Created By    :
+ Created On    :
+
+ Modified By   :
+ Modified Date :
+ Modifications :
+]
+
+
+WINDOWS
+
+TARGET = ACCOUNT
+
+DEFINE
+  #INCLUDE "RD.SYMFORM.DEF"
+  #INCLUDE "IS.DEF"
+
+  DATENAME = CHARACTER
+  ACCTNUM = CHARACTER
+  ADDR1 = CHARACTER
+  ADDR2 = CHARACTER
+  ADDR3 = CHARACTER
+  ADDR4 = CHARACTER
+  ACCTLINE = CHARACTER
+  PAIDITEMS = MONEY
+  PAIDFEES = MONEY
+  TOTAMT = MONEY
+  NUMDAYS = NUMBER
+  SHDESC = CHARACTER     ARRAY(100,3)
+  S=NUMBER
+  I=NUMBER
+  SH=NUMBER
+  SHLINE1 = CHARACTER
+  SHLINE2 = CHARACTER
+  CHRDAYS = CHARACTER(2)
+  ERRORTEXT = CHARACTER
+
+  CUNAME          = CHARACTER
+  CUNUMBER        = CHARACTER
+  USEOPTICAL      = NUMBER
+  PRINTOPTION     = NUMBER
+  COPYQTY         = NUMBER
+  DUPLEXTYPE      = NUMBER
+  PAPERSIZETYPE   = NUMBER
+  ORIENTATIONTYPE = NUMBER
+
+  FORMDATA        = CHARACTER      ARRAY(012)
+  TRUE            = 1
+  FALSE           = 0
+  COMBOVALUE      = CHARACTER      ARRAY(000,250)
+  COMBOCODE       = NUMBER         ARRAY(000,250)
+  LETTERHEAD      = CHARACTER 
+END
+
+
+SETUP
+  #INCLUDE "IS.SETUP"
+  DATENAME=MONTHNAME(MONTH(SYSTEMDATE))+" "+FORMAT("99",DAY(SYSTEMDATE))+", "+FORMAT("9999",FULLYEAR(SYSTEMDATE))
+  ACCTNUM=ACCOUNT:NUMBER
+  WHILE SEGMENT(ACCTNUM,1,1)="0"
+   DO
+    ACCTNUM=SEGMENT(ACCTNUM,2,LENGTH(ACCTNUM))
+   END
+  ADDR1           = CAPITALIZE(ACCOUNT:PAYEELINE:1)
+  ADDR2           = CAPITALIZE(ACCOUNT:PAYEELINE:2)
+  ADDR3           = CAPITALIZE(ACCOUNT:PAYEELINE:3)
+  ADDR4           = CAPITALIZE(ACCOUNT:PAYEELINE:4)
+  CUNUMBER        = "CU Number goes here"
+  CUNAME          = "CU Name goes here"
+  QUOTE           = CTRLCHR(34)
+  SYMFORMINPUT    = TRUE
+  FORMSAVED       = FALSE
+  FORMSBMT        = FALSE
+  USENEWIDFIELDS  = TRUE
+
+  COPYQTY         = 1
+  ORIENTATIONTYPE = 1   [ 1  - PORTRAIT                      ]
+                        [ 2  - LANDSCAPE                     ]
+  DUPLEXTYPE      = 1   [ 1  - SIMPLEX                       ]
+                        [ 2  - DUPLEX VERTICAL               ]
+                        [ 3  - DUPLEX HORIZONTAL             ]
+  PAPERSIZETYPE   = 1   [ 1  - LETTER 8 1/2 x 11 in          ]
+                        [ 2  - LETTER SMALL 8 1/2 X 11 IN    ]
+                        [ 3  - TABLOID 11 X 17 IN            ]
+                        [ 4  - LEDGER 17 X 11 IN             ]
+                        [ 5  - LEGAL 8 1/2 X 14 IN           ]
+                        [ 6  - STATEMENT 5 1/2 X 8 1/2 IN    ]
+                        [ 7  - EXECUTIVE 7 1/4 X 10 1/2 IN   ]
+                        [ 8  - A3 297 X 420 MM               ]
+                        [ 9  - A4 210 X 297 MM               ]
+                        [ 10 - A4 SMALL 210 X 297 MM         ]
+  USEOPTICAL      = 0   [ 0  - NO OPTICAL STORAGE            ]
+                        [ 1  - OPTICAL STORAGE               ]
+  PRINTOPTION     = 1   [ 0  - CLOSE AFTER SUBMIT THEN PRINT ]
+                        [ 1  - CLOSE AFTER JUST PRINT        ]
+                        [ 2  - AUTO PRINT                    ]
+                        [ 3  - AND UP - USER DEFINED         ]
+
+  STICKYFORMID    = "UNIQUE FORM NAME"
+[
+  STICKYFORMID is a 20 character text field that helps identify
+  the note and tie it to the form. Default is the Driver name.
+]
+
+  FOR STICKYLOOP=0 TO 50
+   DO
+    STICKYORD(STICKYLOOP)=-1
+   END
+
+  IF SYSWINDOWSLEVEL<2 THEN
+   DO
+    NEWLINE
+    NEWLINE
+    PRINT "SYMFORM REPGENS CAN ONLY BE RUN FROM SYMITAR FOR WINDOWS"
+    NEWLINE
+    NEWLINE
+    TERMINATE
+   END
+
+  CALL GETSHARES
+  SH=S 
+  DIALOGSTART("Negative Account Information",200%,1)
+  
+   IF S>1 THEN
+    DO
+     DIALOGPROMPTCOMBOSTART("Select Negative Share",1)
+     FOR I=1 TO S
+      DO
+        DIALOGPROMPTCOMBOOPTION(I,SHDESC(I,1)+" - "+SHDESC(I,2))
+      END
+     DIALOGPROMPTCOMBOEND
+    END
+[todo:] 
+   DIALOGPROMPTCOMBOSTART(["Choose 15 or 30 Days"]"Choose 30 or 45 Days",2)
+    DIALOGPROMPTCOMBOOPTION(1,["15 Days"]"30 Days")
+    DIALOGPROMPTCOMBOOPTION(2,["30 Days"]"45 Days")
+   DIALOGPROMPTCOMBOEND
+   DIALOGPROMPTMONEY("Paid Items",$0.00)
+   DIALOGPROMPTMONEY("Fees",$0.00)
+   DIALOGPROMPTYESNO("Print to Letterhead",0)
+  DIALOGDISPLAY
+   IF S>1 THEN 
+    SH=ENTERCODE("Select Negative Share",S,1)
+   NUMDAYS=ENTERCODE(["Choose 15 or 30 Days"]"Choose 30 or 45 Days",2,2)
+   PAIDITEMS=ENTERMONEY("Paid Items",$0.00)
+   PAIDFEES=ENTERMONEY("Fees",$0.00)
+   LETTERHEAD=ENTERYESNO("Print to Letterhead","N")
+  DIALOGCLOSE
+  IF NUMDAYS=1 THEN 
+   CHRDAYS=["15"]"30"
+  ELSE 
+   CHRDAYS=["30"]"45"
+[todo:/]   
+  ACCTLINE="Regarding your Account Number: "+ACCTNUM
+  SHLINE1="Your "+SHDESC(SH,2)+" account has been overdrawn for "+CHRDAYS+" days for the following amounts:"
+  IF LENGTH(SHLINE1)>75 THEN
+   DO
+    SHLINE1="Your "+SHDESC(SH,2)+" account has been overdrawn for "+CHRDAYS+" days"
+    SHLINE2="for the following amounts:"
+   END
+  TOTAMT=PAIDITEMS+PAIDFEES
+
+  CALL ASSIGNFIELDVARIABLES
+  CALL UPDATESYMFORMFIELDS
+
+  [ #PLACELOADSTICKY ]
+[
+  This is where you would place the call to load Sticky Notes from
+  either Account, Share, Loan, or Loan Application record:
+  CALL LOADSTICKYNOTESACCOUNT or
+  CALL LOADSTICKYNOTESSHARE or
+  CALL LOADSTICKYNOTESLOAN or
+  CALL LOADSTICKYNOTESLOANAPP
+  Only one procedure can be called. Make sure you have the
+  corresponding INCLUDE file with the record definitions.
+]
+
+[
+  This is where you would create custom tool bar items.
+  Valid tool bar control types are 6=Button, 5=Combo Box, 8=List box.
+  For example to create a single button:
+  WINDOWSSEND(332,"TID=1,CT=6")
+]
+
+  IF PRINTOPTION=2 THEN
+   DO
+    WINDOWSSEND(332,"MBNA=NOTHING")
+    CALL GETRESPONSE
+    WINDOWSSEND(332,"SAVE=DEFAULTPRINT"+
+			    ",PRINTERNAME=LETTERHEAD"+
+                    ",ORIENTATION="+FORMAT("9",ORIENTATIONTYPE)+
+                    ",PAPERSIZE="+FORMAT("#9",PAPERSIZETYPE)+
+                    ",DUPLEX="+FORMAT("9",DUPLEXTYPE)+
+                    ",COPIES="+FORMAT("9",COPYQTY))
+    CALL GETRESPONSE
+    FMPERFORM CREATE NOTE 0 (0,0,ERRORTEXT)
+     DO
+      SET CODE TO 0
+      SET TEXT:1 TO "Negative Account Notice Sent"
+      SET TEXT:2 TO "Share Balance: "+SHDESC(SH,3)
+      SET TEXT:3 TO "Items:"+FORMAT("##,##9.99",PAIDITEMS)+"  Fees:"+FORMAT("##,##9.99",PAIDFEES)
+     END
+    WINDOWSSEND(332,"CLOSE,MIN")
+    CLOSEFORM=TRUE
+   END
+  ELSE
+   DO
+    WINDOWSSEND(332,"SP=001,SF=001")
+    CALL GETRESPONSE
+    WINDOWSSEND(332,"SAVE=DEFAULTPRINT"+
+			    ",PRINTERNAME=LETTERHEAD"+              [User MUST have the LETTERHEAD printer set in the Options-Symform]
+                    ",ORIENTATION="+FORMAT("9",ORIENTATIONTYPE)+
+                    ",PAPERSIZE="+FORMAT("#9",PAPERSIZETYPE)+
+                    ",DUPLEX="+FORMAT("9",DUPLEXTYPE)+
+                    ",COPIES="+FORMAT("9",COPYQTY))
+    CALL GETRESPONSE
+    FMPERFORM CREATE NOTE 0 (0,0,ERRORTEXT)
+     DO
+      SET CODE TO 0
+      SET TEXT:1 TO "Negative Account Notice Sent"
+      SET TEXT:2 TO "Share Balance: "+SHDESC(SH,3)
+      SET TEXT:3 TO "Items:"+FORMAT("##,##9.99",PAIDITEMS)+"  Fees:"+FORMAT("##,##9.99",PAIDFEES)
+     END
+    WINDOWSSEND(332,"CLOSE,MIN")
+    CLOSEFORM=TRUE
+   END
+
+  TEMPNUM=1
+  WHILELIMIT=100000
+  WHILE (VALUE(RESPSF)>0 OR RESPSF="") AND CLOSEFORM=FALSE
+   DO
+    CALL GETRESPONSE
+    CALL CLEARCBVALUES
+    CALL PROCESSFIELDEVENT
+    IF RESPCMD<>"" THEN
+     DO
+      IF RESPCMD="SBMT" THEN
+       DO
+        WINDOWSSEND(332,"SBMT")
+        RESPID="1"
+        WHILE RESPVA<>"END" OR RESPID<>"0"
+         DO
+          CALL GETRESPONSE
+          FORMDATA(VALUE(RESPID))=RESPVA
+         END
+        CALL UPDATEFIELDVARIABLES
+        [ #PLACEUPDATESTICKY ]
+        [
+        This is where you would place the call to update Sticky Notes to
+        either Account, Share, Loan, or Loan Application record:
+        CALL UPDATESTICKYNOTESACCOUNT or
+        CALL UPDATESTICKYNOTESSHARE or
+        CALL UPDATESTICKYNOTESLOAN or
+        CALL UPDATESTICKYNOTESLOANAPP
+        Only one procedure can be called. Make sure you have the
+        corresponding INCLUDE file with the record definitions.
+        By default is set to update Notes to the Account record.
+        ]
+        FORMSBMT=TRUE
+
+
+        [Additional FMPERFORM commands can be performed here]
+        CALL ASSIGNFIELDVARIABLES
+        CALL UPDATESYMFORMVALUES
+
+        WINDOWSSEND(332,"MFLAG=0")
+        WINDOWSSEND(332,"MBOK=ALL FIELDS SENT TO HOST")
+       END
+
+      IF RESPCMD="SAVE" THEN
+       DO
+        [OTG index data goes here. You must give the OTG field name and the
+        data you want to default into that field. Normally if the info is
+        available on the form you should use it instead of the variable on
+        the system. This way if information is changed and not yet
+        submitted to host it will still be the most accurate.
+        ]
+        IF USEOPTICAL>0 THEN
+         DO
+          [#PLACEBURN
+          TEMPCHAR=ANUMBER
+          CALL REMOVELEADINGZEROS
+          ANUMBER=TEMPCHAR
+          TEMPLINE=NLONGNAME(0)
+          CALL REMOVEHYPHENAPOSTROPHE
+          WINDOWSSEND(332,"OTGN(0)=APPLICATION,OTG(0)=LOANS")
+          WINDOWSSEND(332,"OTGN(1)=ACCT NO,OTG(1)="+ANUMBER)
+          WINDOWSSEND(332,"OTGN(2)=NAME,OTG(2)="+TEMPLINE)
+          WINDOWSSEND(332,"OTGN(3)=TAX ID,OTG(3)="+NSSN(0))
+          WINDOWSSEND(332,"OTGN(4)=LOAN ID,OTG(4)="+LID)
+          WINDOWSSEND(332,"OTGN(5)=DOC TYPE,OTG(5)="+
+                           GETDATACHAR(GETDEFAULTLOAN,LTYPE,77))
+          WINDOWSSEND(332,"OTGN(6)=DATE,OTG(6)="+
+                           FORMAT("99/99/99",SYSTEMDATE))
+          ]
+          WINDOWSSEND(332,"SAVE=SAVE")
+          CALL GETRESPONSE
+          IF CHARACTERSEARCH(RESPSAV,"-")>0 THEN
+           DO
+            IF RESPSAV="-8" THEN
+             DO
+              WINDOWSSEND(332,"MBOK=You cannot send to optical. "+
+                              "Your SymForm registration needs to be updated. "+
+                              "Please contact Symitar")
+             END
+            ELSE
+             DO
+              WINDOWSSEND(332,"SAVE=SAVE,SAVEMODE=1")   [,SAVEPATH=C:\\]
+              CALL GETRESPONSE
+             END
+           END
+          IF CHARACTERSEARCH(RESPSAV,"-")>0 THEN
+           COPYQTY=COPYQTY+1
+         END
+
+        WINDOWSSEND(332,"SAVE=PRINT"+
+                        ",ORIENTATION="+FORMAT("9",ORIENTATIONTYPE)+
+                        ",PAPERSIZE="+FORMAT("#9",PAPERSIZETYPE)+
+                        ",DUPLEX="+FORMAT("9",DUPLEXTYPE)+
+                        ",COPIES="+FORMAT("9",COPYQTY))
+        CALL GETRESPONSE
+
+        IF CHARACTERSEARCH(RESPSAV,"-")=0 AND VALUE(RESPSAV)<>0 THEN
+          FORMSAVED = TRUE
+
+        IF PRINTOPTION=0 AND FORMSAVED=TRUE AND FORMSBMT=TRUE OR
+           PRINTOPTION=1 AND FORMSAVED=TRUE                   OR
+           PRINTOPTION=3                                      THEN
+           [Other PRINTOPTIONS go here]
+         DO
+          WINDOWSSEND(332,"CLOSE,MIN")
+          CLOSEFORM=TRUE
+         END
+       END
+     END
+
+    IF RESPTID<>"" THEN
+      CALL PROCESSTOOLBAREVENT
+   END
+END
+
+
+PRINT TITLE="TEST"
+  SUPPRESSNEWLINE
+END
+
+
+[Whenever the user attempts to change fields by ether using the mouse or
+ the tab key a number of pieces of data are sent to this procedure:
+ RESPSF = Indicates the field ID that was attempted to be moved to.
+ RESPID = Indicates the field ID the user was on.
+ RESPVA = Indicates the value that was entered into the field.
+ RESPSP = Indicates the page that was attempted to be moved to.
+ RESPRD = Indicates the method used to move between field IDs.
+ From the statement below you can see that normally SymForm just allows
+ the action by changing focus to the requested field.
+
+ This is where field validation could occur. For example if you didn't
+ want the user to be able to leave field 10 until a value between
+ 6 and 18 was entered you could simply add
+ IF VALUE(RESPID)=10 AND (VALUE(RESPVA)<6 OR VALUE(RESPVA)>18) THEN
+   RESPSF="10"
+
+ Some procedures to help validate common fields will be placed in
+ RD.SYMFORM.PRO. The current ones are:
+
+ FIXPHONENUMBER - This procedure will right justify a phone number and
+                  ensure that it is 7 or 10 characters long.
+                  Ex:  IF VALUE(RESPID)=5 THEN
+                         CALL FIXPHONENUMBER
+]
+PROCEDURE PROCESSFIELDEVENT
+  IF RESPSP<>"" THEN
+    WINDOWSSEND(332,"SP="+RESPSP)
+  IF RESPSF<>"" THEN
+    WINDOWSSEND(332,"SF="+RESPSF)
+END
+
+
+[Values passed will be RESPTID to let you know what tool bar control
+ was used and RESPTVA to respond back what item was selected.
+]
+PROCEDURE PROCESSTOOLBAREVENT
+END
+
+PROCEDURE GETSHARES
+ FOR EACH SHARE WITH SHARE:CLOSEDATE='--/--/--' AND SHARE:BALANCE<$0.00
+  DO
+   S=S+1
+   SHDESC(S,1)=SHARE:ID
+   SHDESC(S,2)=CAPITALIZE(SHARE:DESCRIPTION)
+   SHDESC(S,3)=FORMAT("##,##9.99+",SHARE:BALANCE)
+  END
+ IF S=0 THEN 
+  DO
+   POPUPMESSAGE(1, "There are no Negative shares on this Account.")
+   TERMINATE
+  END
+END
+
+  #INCLUDE "RD.SYMFORM.PRO"
+  #INCLUDE "NEGATIVENOTICE.INC"
+  #INCLUDE "NEGATIVENOTICE.SYMFORM"
+  #INCLUDE "IS.PRO"
